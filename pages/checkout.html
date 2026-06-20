@@ -988,11 +988,13 @@ function selecionarFrete(idx, valor, nome, prazo) {
   freteValor = valor;
   freteSelecionado = { nome, prazo, valor };
 
-  // Atualizar visual dos radio buttons
-  document.querySelectorAll('.frete-opcao').forEach((el, i) => {
-    el.style.borderColor = i === idx ? 'var(--gold)' : 'var(--border)';
-    el.style.background = i === idx ? 'rgba(212,175,55,0.06)' : 'transparent';
-    el.querySelector('input[type="radio"]').checked = (i === idx);
+  // Atualizar visual de TODAS as opções de frete
+  document.querySelectorAll('.frete-opcao').forEach((el) => {
+    const radio = el.querySelector('input[type="radio"]');
+    const isSelected = radio.value === String(idx);
+    el.style.borderColor = isSelected ? 'var(--gold)' : 'var(--border)';
+    el.style.background = isSelected ? 'rgba(212,175,55,0.06)' : 'transparent';
+    radio.checked = isSelected;
   });
 
   atualizarResumo();

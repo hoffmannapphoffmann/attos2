@@ -323,7 +323,8 @@ exports.calcularFrete = onRequest(
 
       // Montar payload para a API do Melhor Envio (v2 - endpoint de produção)
       const payload = {
-        from: { postal_code: "13630000" }, // CEP de origem (Casa Branca-SP)
+        from: { postal_code: "83458890" }, // CEP de origem (Bocaiuva do Sul-PR)
+
         to: { postal_code: cepDestino.replace(/\D/g, "") },
         products: itens.map(item => ({
           id: item.id || "produto",

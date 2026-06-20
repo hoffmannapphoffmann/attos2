@@ -1,0 +1,13 @@
+{
+  "cepDestino": "01310100",
+  "itens": [
+    {
+      "peso": 0.2,
+      "altura": 2,
+      "largura": 20,
+      "comprimento": 30,
+      "valor": 79.90,
+      "quantidade": 1
+    }
+  ]
+}

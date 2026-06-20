@@ -21,6 +21,7 @@ const db = admin.firestore();
 // ============================================
 const ASAAS_API_KEY = defineSecret("ASAAS_API_KEY");
 const SEED_KEY = defineSecret("SEED_KEY");
+const MELHOR_ENVIO_TOKEN = defineSecret("MELHOR_ENVIO_TOKEN");
 
 // ============================================
 // ASASS — GERAR COBRANÇA
@@ -292,3 +293,92 @@ exports.seed = onRequest(
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// ============================================
+// MELHOR ENVIO — CALCULAR FRETE
+// ============================================
+// POST /api/calcular-frete
+// Body: { cepDestino, itens: [{ peso, altura, largura, comprimento, quantidade }] }
+// Retorna: [{ servico, nome, prazo, valor }]
+exports.calcularFrete = onRequest(
+  { secrets: [MELHOR_ENVIO_TOKEN] },
+  async (req, res) => {
+    // CORS
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Content-Type");
+    if (req.method === "OPTIONS") return res.status(204).send("");
+
+    if (req.method !== "POST") return res.status(405).json({ error: "Método não permitido" });
+
+    try {
+      const { cepDestino, itens } = req.body;
+
+      if (!cepDestino || !itens || !Array.isArray(itens) || itens.length === 0) {
+        return res.status(400).json({ error: "Campos obrigatórios: cepDestino, itens" });
+      }
+
+      const token = MELHOR_ENVIO_TOKEN.value();
+      const ME_BASE = "https://api.melhorenvio.com/v1";
+
+      // Montar payload para a API do Melhor Envio
+      const payload = {
+        from: { postal_code: "13630000" }, // CEP de origem (Casa Branca-SP)
+        to: { postal_code: cepDestino.replace(/\D/g, "") },
+        package: itens.map(item => ({
+          height: item.altura || 2,
+          width: item.largura || 20,
+          length: item.comprimento || 30,
+          weight: item.peso || 0.2,
+          insurance_value: item.valor || 0,
+          quantity: item.quantidade || 1
+        })),
+        options: {
+          receipt: false,
+          own_hand: false
+        },
+        services: "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50"
+      };
+
+      logger.info("Calculando frete Melhor Envio:", JSON.stringify({ cepDestino, qtdItens: itens.length }));
+
+      const response = await axios.post(`${ME_BASE}/frete/calculate`, payload, {
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "User-Agent": "ATTOS2 (cleverson@hoffmannapp.com)"
+        }
+      });
+
+      const fretes = response.data;
+
+      // Filtrar e formatar resultados
+      const resultados = fretes
+        .filter(f => f.error === false || f.price > 0)
+        .map(f => ({
+          servico: String(f.id || ""),
+          nome: f.name || f.company?.name || "Transportadora",
+          prazo: f.delivery_time || f.delivery_range || "—",
+          valor: parseFloat(f.price || 0),
+          empresa: f.company?.name || ""
+        }))
+        .filter(f => f.valor > 0);
+
+      logger.info(`Frete calculado: ${resultados.length} opções encontradas`);
+
+      res.json({
+        success: true,
+        fretes: resultados
+      });
+
+    } catch (err) {
+      logger.error("Erro ao calcular frete Melhor Envio:", err.response?.data || err.message);
+      res.status(500).json({
+        success: false,
+        error: "Erro ao calcular frete. Tente novamente.",
+        fretes: []
+      });
+    }
+  }
+);

@@ -876,40 +876,119 @@ async function salvarEndereco() {
 }
 
 // ============================================
-// FRETE (simulado - Melhor Envio será integrado depois)
+// FRETE — Melhor Envio (API real)
 // ============================================
-function calcularFrete() {
+async function calcularFrete() {
   if (enderecoSelecionado === null) return;
 
   const end = enderecos[enderecoSelecionado];
   const container = document.getElementById('freteInfo');
 
-  // Simular cálculo de frete baseado no estado
-  const estado = end.estado || 'SP';
-  const regioes = {
-    'SP': { valor: 12.00, prazo: '3-5' },
-    'RJ': { valor: 14.00, prazo: '4-6' },
-    'MG': { valor: 14.00, prazo: '4-6' },
-    'ES': { valor: 14.00, prazo: '4-6' },
-    'PR': { valor: 16.00, prazo: '5-7' },
-    'SC': { valor: 16.00, prazo: '5-7' },
-    'RS': { valor: 16.00, prazo: '5-7' },
-    'default': { valor: 20.00, prazo: '7-12' }
-  };
-
-  const regiao = regioes[estado] || regioes['default'];
-  freteValor = regiao.valor;
-
+  // Mostrar loading
   container.innerHTML = `
-    <div class="frete-info">
-      <div>
-        <div class="frete-label">Frete para ${end.cidade || ''} - ${estado}</div>
-        <div style="font-size:0.7rem;color:var(--text-muted);margin-top:4px">Prazo estimado: ${regiao.prazo} dias úteis</div>
-      </div>
-      <div class="frete-valor">R$ ${freteValor.toFixed(2).replace('.',',')}</div>
+    <div style="text-align:center;padding:20px;color:var(--text-muted)">
+      <div style="display:inline-block;width:20px;height:20px;border:2px solid rgba(212,175,55,0.2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.6s linear infinite;margin-bottom:8px"></div>
+      <div style="font-size:0.75rem;letter-spacing:2px">Calculando frete...</div>
     </div>
   `;
 
+  try {
+    // Montar itens do carrinho para o cálculo
+    const itens = carrinho.map(item => ({
+      peso: 0.2, // 200g por camiseta
+      altura: 2,
+      largura: 20,
+      comprimento: 30,
+      valor: item.preco,
+      quantidade: item.quantidade
+    }));
+
+    // Chamar a Cloud Function
+    const response = await fetch('https://southamerica-east1-attos2-c2644.cloudfunctions.net/calcularFrete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cepDestino: end.cep || '',
+        itens: itens
+      })
+    });
+
+    const data = await response.json();
+
+    if (!data.success || !data.fretes || data.fretes.length === 0) {
+      throw new Error('Nenhuma opção de frete disponível');
+    }
+
+    // Mostrar opções de frete
+    const opcoesHTML = data.fretes.map((f, idx) => `
+      <label class="frete-opcao" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid ${idx === 0 ? 'var(--gold)' : 'var(--border)'};border-radius:8px;cursor:pointer;transition:all 0.2s;background:${idx === 0 ? 'rgba(212,175,55,0.06)' : 'transparent'}" onclick="selecionarFrete(${idx}, ${f.valor}, '${f.nome}', '${f.prazo}')">
+        <input type="radio" name="freteOpcao" value="${idx}" ${idx === 0 ? 'checked' : ''} style="accent-color:var(--gold)">
+        <div style="flex:1">
+          <div style="font-size:0.8rem;font-weight:600">${f.nome}</div>
+          <div style="font-size:0.65rem;color:var(--text-muted);letter-spacing:1px">Prazo: ${f.prazo} dias úteis</div>
+        </div>
+        <div style="font-size:1rem;font-weight:700;color:var(--gold)">R$ ${f.valor.toFixed(2).replace('.',',')}</div>
+      </label>
+    `).join('');
+
+    container.innerHTML = `
+      <div style="margin-bottom:12px">
+        <div style="font-size:0.7rem;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px">
+          Frete para ${end.cidade || ''} - ${end.estado || ''}
+        </div>
+        ${opcoesHTML}
+      </div>
+    `;
+
+    // Selecionar a primeira opção automaticamente
+    freteValor = data.fretes[0].valor;
+    atualizarResumo();
+    document.getElementById('btnConfirmar').disabled = false;
+
+  } catch (err) {
+    console.warn('Erro ao calcular frete:', err);
+    container.innerHTML = `
+      <div class="frete-info" style="border-color:rgba(244,67,54,0.3);background:rgba(244,67,54,0.06)">
+        <div>
+          <div class="frete-label" style="color:var(--error)">Erro ao calcular frete</div>
+          <div style="font-size:0.7rem;color:var(--text-muted);margin-top:4px">Nao foi possivel calcular o frete. Tente novamente ou prossiga com frete fixo de R$ 20,00.</div>
+        </div>
+        <div>
+          <button onclick="usarFreteFixo()" style="background:var(--gold);border:none;border-radius:6px;padding:8px 16px;color:#050505;font-size:0.7rem;letter-spacing:1px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif">Usar frete fixo</button>
+        </div>
+      </div>
+    `;
+  }
+}
+
+// Selecionar uma opção de frete
+function selecionarFrete(idx, valor, nome, prazo) {
+  freteValor = valor;
+
+  // Atualizar visual dos radio buttons
+  document.querySelectorAll('.frete-opcao').forEach((el, i) => {
+    el.style.borderColor = i === idx ? 'var(--gold)' : 'var(--border)';
+    el.style.background = i === idx ? 'rgba(212,175,55,0.06)' : 'transparent';
+    el.querySelector('input[type="radio"]').checked = (i === idx);
+  });
+
+  atualizarResumo();
+}
+
+// Fallback: frete fixo de R$ 20,00
+function usarFreteFixo() {
+  freteValor = 20.00;
+  const end = enderecos[enderecoSelecionado];
+  const container = document.getElementById('freteInfo');
+  container.innerHTML = `
+    <div class="frete-info">
+      <div>
+        <div class="frete-label">Frete fixo para ${end?.cidade || ''} - ${end?.estado || ''}</div>
+        <div style="font-size:0.7rem;color:var(--text-muted);margin-top:4px">Prazo estimado: 7-12 dias úteis</div>
+      </div>
+      <div class="frete-valor">R$ 20,00</div>
+    </div>
+  `;
   atualizarResumo();
   document.getElementById('btnConfirmar').disabled = false;
 }

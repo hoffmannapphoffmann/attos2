@@ -319,13 +319,14 @@ exports.calcularFrete = onRequest(
       }
 
       const token = MELHOR_ENVIO_TOKEN.value();
-      const ME_BASE = "https://api.melhorenvio.com/v1";
+      const ME_BASE = "https://melhorenvio.com.br";
 
-      // Montar payload para a API do Melhor Envio
+      // Montar payload para a API do Melhor Envio (v2 - endpoint de produção)
       const payload = {
         from: { postal_code: "13630000" }, // CEP de origem (Casa Branca-SP)
         to: { postal_code: cepDestino.replace(/\D/g, "") },
-        package: itens.map(item => ({
+        products: itens.map(item => ({
+          id: item.id || "produto",
           height: item.altura || 2,
           width: item.largura || 20,
           length: item.comprimento || 30,
@@ -342,12 +343,12 @@ exports.calcularFrete = onRequest(
 
       logger.info("Calculando frete Melhor Envio:", JSON.stringify({ cepDestino, qtdItens: itens.length }));
 
-      const response = await axios.post(`${ME_BASE}/frete/calculate`, payload, {
+      const response = await axios.post(`${ME_BASE}/api/v2/me/shipment/calculate`, payload, {
         headers: {
           "Accept": "application/json",
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`,
-          "User-Agent": "ATTOS2 (cleverson@hoffmannapp.com)"
+          "User-Agent": "ATTOS2 (contato@attos2.com.br)"
         }
       });
 
@@ -355,15 +356,18 @@ exports.calcularFrete = onRequest(
 
       // Filtrar e formatar resultados
       const resultados = fretes
-        .filter(f => f.error === false || f.price > 0)
+        .filter(f => !f.error)
         .map(f => ({
           servico: String(f.id || ""),
-          nome: f.name || f.company?.name || "Transportadora",
-          prazo: f.delivery_time || f.delivery_range || "—",
-          valor: parseFloat(f.price || 0),
+          nome: f.name || "Transportadora",
+          prazo: f.custom_delivery_time || f.delivery_time || 0,
+          prazoMin: f.custom_delivery_range?.min || f.delivery_range?.min || 0,
+          prazoMax: f.custom_delivery_range?.max || f.delivery_range?.max || 0,
+          valor: parseFloat(f.custom_price || f.price || 0),
           empresa: f.company?.name || ""
         }))
         .filter(f => f.valor > 0);
+
 
       logger.info(`Frete calculado: ${resultados.length} opções encontradas`);
 

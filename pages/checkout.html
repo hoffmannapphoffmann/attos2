@@ -920,16 +920,21 @@ async function calcularFrete() {
     }
 
     // Mostrar opções de frete
-    const opcoesHTML = data.fretes.map((f, idx) => `
-      <label class="frete-opcao" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid ${idx === 0 ? 'var(--gold)' : 'var(--border)'};border-radius:8px;cursor:pointer;transition:all 0.2s;background:${idx === 0 ? 'rgba(212,175,55,0.06)' : 'transparent'}" onclick="selecionarFrete(${idx}, ${f.valor}, '${f.nome}', '${f.prazo}')">
+    const opcoesHTML = data.fretes.map((f, idx) => {
+      const prazoTexto = f.prazoMin && f.prazoMax
+        ? `${f.prazoMin}-${f.prazoMax} dias úteis`
+        : `${f.prazo} dias úteis`;
+      return `
+      <label class="frete-opcao" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid ${idx === 0 ? 'var(--gold)' : 'var(--border)'};border-radius:8px;cursor:pointer;transition:all 0.2s;background:${idx === 0 ? 'rgba(212,175,55,0.06)' : 'transparent'}" onclick="selecionarFrete(${idx}, ${f.valor}, '${f.nome}', '${prazoTexto}')">
         <input type="radio" name="freteOpcao" value="${idx}" ${idx === 0 ? 'checked' : ''} style="accent-color:var(--gold)">
         <div style="flex:1">
           <div style="font-size:0.8rem;font-weight:600">${f.nome}</div>
-          <div style="font-size:0.65rem;color:var(--text-muted);letter-spacing:1px">Prazo: ${f.prazo} dias úteis</div>
+          <div style="font-size:0.65rem;color:var(--text-muted);letter-spacing:1px">Prazo: ${prazoTexto}</div>
         </div>
         <div style="font-size:1rem;font-weight:700;color:var(--gold)">R$ ${f.valor.toFixed(2).replace('.',',')}</div>
       </label>
-    `).join('');
+    `}).join('');
+
 
     container.innerHTML = `
       <div style="margin-bottom:12px">

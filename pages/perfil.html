@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATTOS2 — Meu Perfil</title>
+<meta name="description" content="Gerencie seus dados pessoais e endereços na ATTOS2.">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<link rel="icon" type="image/png" href="../logo2.png">
+<link rel="shortcut icon" href="../logo2.png">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+:root {
+  --gold: #D4AF37;
+  --gold2: #FFD700;
+  --fire1: #FF4500;
+  --fire2: #FF8C00;
+  --bg: #050505;
+  --card-bg: rgba(255,255,255,0.03);
+  --border: rgba(212,175,55,0.15);
+  --text: rgba(255,255,255,0.85);
+  --text-muted: rgba(255,255,255,0.4);
+  --success: #4CAF50;
+  --error: #f44336;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: Arial, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(212,175,55,0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 50%, rgba(255,69,0,0.02) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* NAVBAR */
+.perfil-nav {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  border-bottom: 1px solid var(--border);
+}
+.perfil-nav a {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  transition: color 0.3s;
+}
+.perfil-nav a:hover { color: var(--gold); }
+.perfil-nav .logo-sm { height: 32px; opacity: 0.8; }
+
+/* LAYOUT */
+.perfil-layout {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 32px 20px 80px;
+}
+
+.perfil-title {
+  font-size: 1.4rem;
+  letter-spacing: 3px;
+  font-weight: 400;
+  margin-bottom: 32px;
+}
+.perfil-title em { color: var(--gold); font-style: italic; }
+
+/* SEÇÕES */
+.secao {
+  margin-bottom: 32px;
+}
+.secao-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.secao-header h2 {
+  font-size: 0.9rem;
+  letter-spacing: 2px;
+  font-weight: 400;
+}
+.secao-header h2 small {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  display: block;
+  margin-top: 2px;
+}
+
+/* FORMULÁRIO */
+.form-perfil {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.form-perfil .full-width {
+  grid-column: 1 / -1;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.form-group label {
+  font-size: 0.65rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.form-group input, .form-group select {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #fff;
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: Arial, sans-serif;
+}
+.form-group input:focus, .form-group select:focus {
+  border-color: var(--gold);
+}
+.form-group input::placeholder {
+  color: rgba(255,255,255,0.2);
+}
+.form-group input:read-only {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.form-group select option {
+  background: #1a1a1a;
+  color: #fff;
+}
+
+/* BOTÕES */
+.btn-perfil {
+  background: linear-gradient(135deg, var(--gold), var(--gold2));
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  color: #050505;
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-family: Arial, sans-serif;
+}
+.btn-perfil:hover {
+  box-shadow: 0 0 30px rgba(212,175,55,0.3);
+  transform: translateY(-1px);
+}
+.btn-perfil:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-perfil-sec {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 24px;
+  color: var(--text);
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-family: Arial, sans-serif;
+}
+.btn-perfil-sec:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.btn-perfil-danger {
+  background: transparent;
+  border: 1px solid rgba(244,67,54,0.3);
+  border-radius: 8px;
+  padding: 8px 16px;
+  color: var(--error);
+  font-size: 0.65rem;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-family: Arial, sans-serif;
+}
+.btn-perfil-danger:hover {
+  background: rgba(244,67,54,0.1);
+  border-color: var(--error);
+}
+
+/* ENDEREÇOS */
+.enderecos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.endereco-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  transition: all 0.3s;
+  position: relative;
+}
+.endereco-card:hover {
+  border-color: rgba(212,175,55,0.3);
+}
+.endereco-card .endereco-apelido {
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 4px;
+}
+.endereco-card .endereco-info {
+  font-size: 0.8rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+.endereco-card .endereco-principal {
+  position: absolute;
+  top: 10px; right: 12px;
+  font-size: 0.55rem;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.endereco-card .endereco-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+
+/* FORM ENDEREÇO */
+.form-endereco {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.form-endereco .full-width {
+  grid-column: 1 / -1;
+}
+
+/* BOTÃO ADICIONAR ENDEREÇO */
+.btn-add-endereco {
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.3s;
+  width: 100%;
+  text-align: center;
+  font-family: Arial, sans-serif;
+}
+.btn-add-endereco:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+/* PEDIDOS RESUMIDOS */
+.pedidos-resumo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pedido-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.pedido-card .pedido-info {
+  font-size: 0.8rem;
+}
+.pedido-card .pedido-info .pedido-id {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+.pedido-card .pedido-status {
+  font-size: 0.65rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+.pedido-status.aguardando_pagamento { background: rgba(255,152,0,0.15); color: #FF9800; }
+.pedido-status.pago { background: rgba(76,175,80,0.15); color: #4CAF50; }
+.pedido-status.enviado { background: rgba(33,150,243,0.15); color: #2196F3; }
+.pedido-status.entregue { background: rgba(212,175,55,0.15); color: var(--gold); }
+.pedido-status.cancelado { background: rgba(244,67,54,0.15); color: #f44336; }
+
+/* MENSAGENS */
+.perfil-msg {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  display: none;
+  margin-bottom: 16px;
+}
+.perfil-msg.success {
+  display: block;
+  background: rgba(76,175,80,0.1);
+  border: 1px solid rgba(76,175,80,0.3);
+  color: var(--success);
+}
+.perfil-msg.error {
+  display: block;
+  background: rgba(244,67,54,0.1);
+  border: 1px solid rgba(244,67,54,0.3);
+  color: var(--error);
+}
+
+/* LOADING */
+.perfil-loading {
+  text-align: center;
+  padding: 80px 20px;
+}
+.perfil-loading .spinner {
+  display: inline-block;
+  width: 32px; height: 32px;
+  border: 2px solid rgba(212,175,55,0.2);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.perfil-loading p {
+  margin-top: 16px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  letter-spacing: 2px;
+}
+
+/* FOOTER */
+.perfil-footer {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 24px;
+  font-size: 0.6rem;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  border-top: 1px solid var(--border);
+}
+
+/* RESPONSIVO */
+@media (max-width: 768px) {
+  .perfil-nav { padding: 12px 16px; }
+  .perfil-layout { padding: 20px 16px 40px; }
+  .form-perfil { grid-template-columns: 1fr; }
+  .form-endereco { grid-template-columns: 1fr; }
+  .perfil-title { font-size: 1.1rem; }
+  .pedido-card { flex-direction: column; align-items: flex-start; gap: 8px; }
+}
+</style>
+</head>
+<body>
+
+<nav class="perfil-nav">
+  <a href="../index.html">← Voltar</a>
+  <a href="../index.html"><img src="../logo2.png" class="logo-sm" alt="ATTOS2"></a>
+  <a href="carrinho.html">Carrinho</a>
+</nav>
+
+<div class="perfil-layout" id="perfilLayout">
+  <h1 class="perfil-title">Meu <em>Perfil</em></h1>
+
+  <div id="perfilMsg" class="perfil-msg"></div>
+
+  <!-- SEÇÃO 1: DADOS PESSOAIS -->
+  <div class="secao">
+    <div class="secao-header">
+      <h2>Dados Pessoais <small>Suas informações de cadastro</small></h2>
+    </div>
+    <div class="form-perfil">
+      <div class="form-group full-width">
+        <label>Nome</label>
+        <input type="text" id="pNome" placeholder="Seu nome">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="pEmail" readonly placeholder="seu@email.com">
+      </div>
+      <div class="form-group">
+        <label>Telefone</label>
+        <input type="tel" id="pTelefone" placeholder="(11) 99999-9999" maxlength="15" oninput="mascararTelefone(this)">
+      </div>
+    </div>
+    <div style="margin-top:16px">
+      <button class="btn-perfil" id="btnSalvarDados" onclick="salvarDadosPessoais()">Salvar Dados</button>
+    </div>
+  </div>
+
+  <!-- SEÇÃO 2: ENDEREÇOS -->
+  <div class="secao">
+    <div class="secao-header">
+      <h2>Endereços <small>Gerencie seus endereços de entrega</small></h2>
+    </div>
+
+    <div id="enderecosSalvos"></div>
+
+    <button class="btn-add-endereco" id="btnNovoEndereco" onclick="toggleFormEndereco()">
+      <i class="ti ti-plus" style="margin-right:6px"></i> Adicionar novo endereço
+    </button>
+
+    <div id="formNovoEndereco" style="display:none;margin-top:16px">
+      <div class="form-endereco">
+        <div class="form-group full-width">
+          <label>Apelido do endereço</label>
+          <input type="text" id="eApelido" placeholder="Ex: Casa, Trabalho, etc.">
+        </div>
+        <div class="form-group">
+          <label>CEP</label>
+          <input type="text" id="eCep" placeholder="00000-000" maxlength="9" oninput="mascararCep(this)" onblur="buscarCep()">
+          <div id="cepStatus" style="font-size:0.6rem;color:var(--text-muted);margin-top:2px"></div>
+        </div>
+        <div class="form-group full-width">
+          <label>Logradouro</label>
+          <input type="text" id="eLogradouro" placeholder="Rua, número">
+        </div>
+        <div class="form-group">
+          <label>Bairro</label>
+          <input type="text" id="eBairro" placeholder="Bairro">
+        </div>
+        <div class="form-group">
+          <label>Cidade</label>
+          <input type="text" id="eCidade" placeholder="Cidade">
+        </div>
+        <div class="form-group">
+          <label>Estado</label>
+          <select id="eEstado">
+            <option value="">Selecione</option>
+            <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option>
+            <option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option>
+            <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
+            <option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option>
+            <option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option>
+            <option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option>
+            <option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option>
+            <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option>
+            <option value="SP">SP</option><option value="SE">SE</option><option value="TO">TO</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Complemento</label>
+          <input type="text" id="eComplemento" placeholder="Apto, bloco (opcional)">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn-perfil" style="flex:1" onclick="salvarEndereco()">Salvar Endereço</button>
+        <button class="btn-perfil-sec" style="flex:0;padding:12px 20px;width:auto" onclick="cancelarNovoEndereco()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEÇÃO 3: PEDIDOS RECENTES -->
+  <div class="secao">
+    <div class="secao-header">
+      <h2>Pedidos Recentes <small>Últimos pedidos realizados</small></h2>
+    </div>
+    <div id="pedidosResumo">
+      <p style="color:var(--text-muted);font-size:0.8rem">Carregando...</p>
+    </div>
+    <div style="margin-top:12px">
+      <a href="pedidos.html" class="btn-perfil-sec" style="display:inline-block;text-decoration:none">
+        <i class="ti ti-package" style="margin-right:6px"></i> Ver todos os pedidos
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="perfil-footer">ATTOS² — Vestindo a Chama do Espírito • Atos 2:4</div>
+
+<script>
+// ============================================
+// FIREBASE
+// ============================================
+const firebaseConfig = {
+  apiKey: "AIzaSyBVXuBi31G9pfviNGUY6uZ_1cFudKthmU0",
+  authDomain: "attos2-c2644.firebaseapp.com",
+  projectId: "attos2-c2644",
+  storageBucket: "attos2-c2644.firebasestorage.app",
+  messagingSenderId: "1021391388902",
+  appId: "1:1021391388902:web:b349b39a74994569bebb27",
+  measurementId: "G-WQYHW5DPBC"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+// ============================================
+// ESTADO
+// ============================================
+let enderecos = [];
+let clienteDoc = null;
+
+// ============================================
+// VERIFICAR LOGIN
+// ============================================
+auth.onAuthStateChanged(user => {
+  if (!user) {
+    sessionStorage.setItem('redirectPosLogin', 'perfil.html');
+    window.location.href = 'login.html';
+    return;
+  }
+  carregarDados(user);
+});
+
+// ============================================
+// CARREGAR DADOS
+// ============================================
+async function carregarDados(user) {
+  try {
+    const doc = await db.collection('clientes').doc(user.uid).get();
+    if (doc.exists) {
+      clienteDoc = doc.data();
+      enderecos = clienteDoc.enderecos || [];
+
+      // Preencher dados pessoais
+      document.getElementById('pNome').value = clienteDoc.nome || '';
+      document.getElementById('pEmail').value = clienteDoc.email || user.email || '';
+      document.getElementById('pTelefone').value = clienteDoc.telefone || '';
+    }
+
+    renderizarEnderecos();
+    carregarPedidos(user);
+  } catch (err) {
+    console.error('Erro ao carregar dados:', err);
+    mostrarMsg('Erro ao carregar seus dados. Tente novamente.', 'error');
+  }
+}
+
+// ============================================
+// MENSAGENS
+// ============================================
+function mostrarMsg(texto, tipo = 'success') {
+  const el = document.getElementById('perfilMsg');
+  el.textContent = texto;
+  el.className = 'perfil-msg ' + tipo;
+  setTimeout(() => {
+    el.className = 'perfil-msg';
+  }, 4000);
+}
+
+// ============================================
+// DADOS PESSOAIS
+// ============================================
+async function salvarDadosPessoais() {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const nome = document.getElementById('pNome').value.trim();
+  const telefone = document.getElementById('pTelefone').value.trim();
+
+  if (!nome) {
+    mostrarMsg('O nome é obrigatório.', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btnSalvarDados');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+
+  try {
+    await db.collection('clientes').doc(user.uid).set({
+      nome: nome,
+      telefone: telefone,
+      email: user.email,
+      enderecos: enderecos,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    // Atualizar displayName no Auth
+    if (user.displayName !== nome) {
+      await user.updateProfile({ displayName: nome });
+    }
+
+    mostrarMsg('Dados salvos com sucesso!', 'success');
+  } catch (err) {
+    console.error('Erro ao salvar dados:', err);
+    mostrarMsg('Erro ao salvar. Tente novamente.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Salvar Dados';
+  }
+}
+
+// ============================================
+// MÁSCARAS
+// ============================================
+function mascararTelefone(input) {
+  let val = input.value.replace(/\D/g, '');
+  if (val.length > 11) val = val.substring(0, 11);
+  if (val.length > 10) {
+    val = '(' + val.substring(0, 2) + ') ' + val.substring(2, 7) + '-' + val.substring(7);
+  } else if (val.length > 6) {
+    val = '(' + val.substring(0, 2) + ') ' + val.substring(2, 6) + '-' + val.substring(6);
+  } else if (val.length > 2) {
+    val = '(' + val.substring(0, 2) + ') ' + val.substring(2);
+  } else if (val.length > 0) {
+    val = '(' + val;
+  }
+  input.value = val;
+}
+
+function mascararCep(input) {
+  let val = input.value.replace(/\D/g, '');
+  if (val.length > 5) {
+    val = val.substring(0, 5) + '-' + val.substring(5, 8);
+  }
+  input.value = val;
+}
+
+// ============================================
+// ENDEREÇOS
+// ============================================
+function renderizarEnderecos() {
+  const container = document.getElementById('enderecosSalvos');
+
+  if (enderecos.length === 0) {
+    container.innerHTML = `
+      <p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:16px">
+        Nenhum endereço salvo. Adicione um abaixo.
+      </p>
+    `;
+    return;
+  }
+
+  container.innerHTML = enderecos.map((e, idx) => `
+    <div class="endereco-card">
+      <div class="endereco-apelido">${e.apelido || 'Endereço'}</div>
+      <div class="endereco-info">
+        ${e.logradouro || ''}, ${e.bairro ? e.bairro + ',' : ''} ${e.cidade || ''} ${e.estado || ''}<br>
+        CEP: ${e.cep || ''}
+      </div>
+      ${e.principal ? '<div class="endereco-principal">Principal</div>' : ''}
+      <div class="endereco-actions">
+        <button class="btn-perfil-danger" onclick="removerEndereco(${idx})">
+          <i class="ti ti-trash"></i> Remover
+        </button>
+        ${!e.principal ? `<button class="btn-perfil-danger" style="border-color:rgba(212,175,55,0.3);color:var(--gold)" onclick="marcarPrincipal(${idx})">
+          <i class="ti ti-star"></i> Principal
+        </button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleFormEndereco() {
+  const form = document.getElementById('formNovoEndereco');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  if (form.style.display === 'block') {
+    document.getElementById('btnNovoEndereco').style.display = 'none';
+  }
+}
+
+function cancelarNovoEndereco() {
+  document.getElementById('formNovoEndereco').style.display = 'none';
+  document.getElementById('btnNovoEndereco').style.display = 'block';
+  ['eApelido','eCep','eLogradouro','eBairro','eCidade','eComplemento'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('eEstado').value = '';
+  document.getElementById('cepStatus').textContent = '';
+}
+
+// ============================================
+// BUSCAR CEP (VIA CEP)
+// ============================================
+async function buscarCep() {
+  const input = document.getElementById('eCep');
+  const cep = input.value.replace(/\D/g, '');
+  const statusEl = document.getElementById('cepStatus');
+
+  if (cep.length !== 8) {
+    statusEl.textContent = '';
+    return;
+  }
+
+  statusEl.textContent = 'Buscando CEP...';
+  statusEl.style.color = 'var(--text-muted)';
+
+  try {
+    const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const data = await response.json();
+
+    if (data.erro) {
+      statusEl.textContent = 'CEP não encontrado.';
+      statusEl.style.color = 'var(--error)';
+      return;
+    }
+
+    document.getElementById('eLogradouro').value = (data.logradouro || '') + (data.complemento ? ', ' + data.complemento : '');
+    document.getElementById('eBairro').value = data.bairro || '';
+    document.getElementById('eCidade').value = data.localidade || '';
+    if (data.uf) {
+      document.getElementById('eEstado').value = data.uf;
+    }
+
+    statusEl.textContent = '✅ Endereço encontrado!';
+    statusEl.style.color = 'var(--success)';
+    document.getElementById('eLogradouro').focus();
+  } catch (err) {
+    console.error('Erro ao buscar CEP:', err);
+    statusEl.textContent = 'Erro ao buscar CEP. Tente novamente.';
+    statusEl.style.color = 'var(--error)';
+  }
+}
+
+// ============================================
+// SALVAR ENDEREÇO
+// ============================================
+async function salvarEndereco() {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const apelido = document.getElementById('eApelido').value.trim();
+  const cep = document.getElementById('eCep').value.trim();
+  const logradouro = document.getElementById('eLogradouro').value.trim();
+  const bairro = document.getElementById('eBairro').value.trim();
+  const cidade = document.getElementById('eCidade').value.trim();
+  const estado = document.getElementById('eEstado').value;
+  const complemento = document.getElementById('eComplemento').value.trim();
+
+  if (!apelido || !cep || !logradouro || !bairro || !cidade || !estado) {
+    mostrarMsg('Preencha todos os campos obrigatórios.', 'error');
+    return;
+  }
+
+  const novoEndereco = {
+    apelido,
+    cep,
+    logradouro,
+    bairro,
+    cidade,
+    estado,
+    complemento,
+    principal: enderecos.length === 0
+  };
+
+  enderecos.push(novoEndereco);
+
+  try {
+    await db.collection('clientes').doc(user.uid).update({
+      enderecos: enderecos
+    });
+  } catch {
+    try {
+      await db.collection('clientes').doc(user.uid).set({
+        enderecos: enderecos,
+        email: user.email,
+        nome: user.displayName || '',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    } catch (err2) {
+      console.error('Erro ao salvar endereço:', err2);
+      mostrarMsg('Erro ao salvar endereço.', 'error');
+      return;
+    }
+  }
+
+  cancelarNovoEndereco();
+  renderizarEnderecos();
+  mostrarMsg('Endereço salvo com sucesso!', 'success');
+}
+
+// ============================================
+// REMOVER ENDEREÇO
+// ============================================
+async function removerEndereco(idx) {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  if (!confirm('Remover este endereço?')) return;
+
+  enderecos.splice(idx, 1);
+
+  // Se removeu o principal, marcar o primeiro como principal
+  if (enderecos.length > 0 && !enderecos.some(e => e.principal)) {
+    enderecos[0].principal = true;
+  }
+
+  try {
+    await db.collection('clientes').doc(user.uid).update({
+      enderecos: enderecos
+    });
+    renderizarEnderecos();
+    mostrarMsg('Endereço removido.', 'success');
+  } catch (err) {
+    console.error('Erro ao remover endereço:', err);
+    mostrarMsg('Erro ao remover endereço.', 'error');
+  }
+}
+
+// ============================================
+// MARCAR COMO PRINCIPAL
+// ============================================
+async function marcarPrincipal(idx) {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  enderecos.forEach((e, i) => {
+    e.principal = (i === idx);
+  });
+
+  try {
+    await db.collection('clientes').doc(user.uid).update({
+      enderecos: enderecos
+    });
+    renderizarEnderecos();
+    mostrarMsg('Endereço principal atualizado.', 'success');
+  } catch (err) {
+    console.error('Erro ao atualizar endereço principal:', err);
+    mostrarMsg('Erro ao atualizar.', 'error');
+  }
+}
+
+// ============================================
+// PEDIDOS RECENTES
+// ============================================
+async function carregarPedidos(user) {
+  const container = document.getElementById('pedidosResumo');
+
+  try {
+    const snapshot = await db.collection('pedidos')
+      .where('clienteId', '==', user.uid)
+      .orderBy('createdAt', 'desc')
+      .limit(3)
+      .get();
+
+    if (snapshot.empty) {
+      container.innerHTML = `
+        <p style="color:var(--text-muted);font-size:0.8rem">
+          Nenhum pedido ainda. <a href="produtos.html" style="color:var(--gold)">Compre agora</a>
+        </p>
+      `;
+      return;
+    }
+
+    container.innerHTML = snapshot.docs.map(doc => {
+      const p = doc.data();
+      const data = p.createdAt ? new Date(p.createdAt.seconds * 1000).toLocaleDateString('pt-BR') : '—';
+      const statusLabels = {
+        'aguardando_pagamento': 'Aguardando Pagamento',
+        'pago': 'Pago',
+        'enviado': 'Enviado',
+        'entregue': 'Entregue',
+        'cancelado': 'Cancelado'
+      };
+      return `
+        <div class="pedido-card">
+          <div class="pedido-info">
+            <strong>#${doc.id.substring(0, 8)}</strong>
+            <div class="pedido-id">${data} • ${p.itens ? p.itens.length : 0} item(ns)</div>
+          </div>
+          <div>
+            <span class="pedido-status ${p.status || 'aguardando_pagamento'}">${statusLabels[p.status] || p.status || 'Aguardando'}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('Erro ao carregar pedidos:', err);
+    container.innerHTML = `
+      <p style="color:var(--text-muted);font-size:0.8rem">
+        Erro ao carregar pedidos. <a href="pedidos.html" style="color:var(--gold)">Ver todos</a>
+      </p>
+    `;
+  }
+}
+
+</script>

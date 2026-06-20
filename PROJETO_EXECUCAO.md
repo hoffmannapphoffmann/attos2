@@ -17,17 +17,19 @@
 | Home (index.html) | ✅ Completo | Hero, partículas, música, produtos, categorias, footer |
 | Navbar | ✅ Completo | Mega-dropdown, user-dropdown, busca, carrinho badge |
 | Login/Cadastro | ✅ Completo | Firebase Auth + Google + Firestore clientes |
-| Carrinho | ✅ Completo | LocalStorage + Firestore, CRUD itens |
+| Carrinho | 🔧 Em correção | Bugs de validação de estoque e race condition sendo corrigidos — ver PROGRESSO.md |
 | Página de Produtos | ✅ Completo | Catálogo com filtros, busca, grid dinâmico |
-| Checkout (endereço + frete) | ✅ Completo | Endereço, frete simulado, geração de pedido |
+| Detalhe do Produto | ✅ Completo | Arquivo: `pages/produto-detalhe.html` com seleção de corte/tamanho e estoque por combinação |
+| Checkout (endereço + frete) | ✅ Completo (frete simulado) | Frete ainda é tabela fixa por estado, não Melhor Envio real |
 | Meus Pedidos | ✅ Completo | Histórico com status e rastreio |
-| Perfil do Cliente | ❌ Não iniciado | Dados pessoais, endereços |
-| Detalhe do Produto | ❌ Não iniciado | Página individual com seleção de corte/tamanho |
-| Painel Admin | ❌ Não iniciado | CRUD produtos, pedidos, cupons, config |
-| Cloud Functions | ❌ Não iniciado | Emails, webhook, estoque |
-| Integração Melhor Envio | ❌ Não iniciado | API de frete |
-| Integração Asaas | ❌ A definir | Pix, boleto, cartão |
-| Integração Resend | ❌ Não iniciado | Emails transacionais |
+| Painel Admin | ✅ Completo | Dashboard, CRUD produtos, pedidos, cupons, config, auditoria — ver `pages/admin/*` |
+| Sistema de Auditoria | ✅ Completo | `js/audit.js`, já em uso no admin |
+| Cloud Functions (pagamento) | ✅ Completo | `gerarCobranca`, `webhookAsaas` em `functions/index.js` |
+| Cloud Functions (estoque/reserva) | 🔧 Em andamento | Reserva transacional + expiração de pedidos — ver PROGRESSO.md |
+| Perfil do Cliente | ❌ Não iniciado | Confirmado ausente |
+| Integração Melhor Envio | ❌ Não iniciado | Confirmado ausente (frete simulado) |
+| Integração Asaas | ✅ Completo (PIX e cartão) | Falta apenas testar em ambiente sandbox antes de produção |
+| Integração Resend (emails) | ❌ Não iniciado | Confirmado ausente |
 
 ---
 
@@ -99,45 +101,38 @@
 - [x] Código de rastreio quando disponível
 - [x] Proteção de login
 
+### 8. Detalhe do Produto (pages/produto-detalhe.html)
+- [x] Seleção de corte e tamanho
+- [x] Estoque por combinação exibido em tempo real
+- [x] Adicionar ao carrinho
+- [x] Toast de confirmação
+
+### 9. Painel Administrativo (pages/admin/*)
+- [x] Login com custom claim `admin` (+ fallback por coleção `admins`)
+- [x] Dashboard com resumo
+- [x] CRUD de produtos com upload de imagem e modelos por corte
+- [x] Gestão de pedidos com atualização de status
+- [x] Cupons
+- [x] Versículo do dia
+- [x] Gerenciamento de outros admins
+- [x] Log de auditoria de todas as ações
+
 ---
 
 ## 🔧 PRÓXIMAS ETAPAS
 
-### Fase 3 — Painel Administrativo (AGORA)
-- [ ] Criar `pages/admin/index.html` — Dashboard com resumo
-- [ ] Login separado com role "admin" (custom claim)
-- [ ] CRUD de produtos (nome, preço, categoria, modelos/cortes, estoque, imagem, versículo, destaque)
-- [ ] Upload de imagens para Cloud Storage
-- [ ] Lista de pedidos com status
-- [ ] Atualizar status do pedido (pago, enviado, entregue)
-- [ ] Inserir código de rastreio
-- [ ] Gerenciamento de cupons
-- [ ] Configuração de frete (valor base, regiões)
-- [ ] Versículo do dia
-
-### Fase 4 — Detalhe do Produto
-- [ ] Criar `pages/produto.html` — Página individual
-- [ ] Imagem grande do produto
-- [ ] Seleção de tamanho (P, M, G, GG) — obrigatório
-- [ ] Seleção de corte (Tradicional, Longline, Slim Fit, Oversized) — obrigatório
-- [ ] Cada combinação (tamanho + corte) tem seu próprio estoque
-- [ ] Botão "Adicionar ao carrinho"
-
-### Fase 5 — Perfil do Cliente
+### Fase 3 — Perfil do Cliente
 - [ ] Criar `pages/perfil.html`
 - [ ] Dados pessoais (nome, email, telefone)
 - [ ] Endereços salvos (múltiplos)
 - [ ] Histórico de pedidos
 
-### Fase 6 — Cloud Functions
+### Fase 4 — Cloud Functions restantes
 - [ ] `onCreate` cliente → email de boas-vindas (Resend)
 - [ ] `onUpdate` pedido → email de confirmação/rastreio
-- [ ] Webhook Asaas (quando definir)
-- [ ] Atualização automática de estoque ao confirmar pedido
 
-### Fase 7 — Integrações
+### Fase 5 — Integrações restantes
 - [ ] Melhor Envio (cálculo de frete real)
-- [ ] Asaas (Pix, boleto, cartão)
 - [ ] Resend (emails transacionais)
 
 ---
@@ -246,12 +241,12 @@ Cada produto pode ter **múltiplos cortes/modelagens**, e cada corte tem seus pr
 | Produtos (catálogo) | `pages/produtos.html` | ✅ |
 | Checkout | `pages/checkout.html` | ✅ |
 | Meus Pedidos | `pages/pedidos.html` | ✅ |
-| Detalhe do Produto | `pages/produto.html` | ❌ |
+| Detalhe do Produto | `pages/produto-detalhe.html` | ✅ |
 | Perfil do Cliente | `pages/perfil.html` | ❌ |
-| Painel Admin | `pages/admin/index.html` | ❌ |
-| Admin - Produtos | `pages/admin/produtos.html` | ❌ |
-| Admin - Pedidos | `pages/admin/pedidos.html` | ❌ |
-| Admin - Config | `pages/admin/config.html` | ❌ |
+| Painel Admin | `pages/admin/index.html` | ✅ |
+| Admin - Produtos | `pages/admin/produtos.html` | ✅ |
+| Admin - Pedidos | `pages/admin/pedidos.html` | ✅ |
+| Admin - Config | `pages/admin/config.html` | ✅ |
 
 ---
 
@@ -267,7 +262,7 @@ Cada produto pode ter **múltiplos cortes/modelagens**, e cada corte tem seus pr
 ## 📝 NOTAS
 
 - **Música:** Gabriela Rocha - Atos 2 (toca na Home)
-- **Pagamento:** Asaas (Pix, boleto, cartão) — a integrar
+- **Pagamento:** Asaas (Pix, boleto, cartão) — já implementado (PIX e cartão), falta testar em sandbox
 - **Frete:** Melhor Envio (API gratuita) — a integrar
 - **Emails:** Resend (3.000/mês grátis) — a integrar
 - **Manutenção:** 1 camiseta/mês (ajustes, correções, suporte)

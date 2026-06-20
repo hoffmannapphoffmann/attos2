@@ -921,14 +921,26 @@ async function calcularFrete() {
       throw new Error('Nenhuma opção de frete disponível');
     }
 
-    // Mostrar opções de frete
+    // Adicionar opção "Retirar no Local" como primeira opção (grátis)
+    const retiradaHTML = `
+      <label class="frete-opcao" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:2px solid var(--gold);border-radius:8px;cursor:pointer;transition:all 0.2s;background:rgba(212,175,55,0.06)" onclick="selecionarFrete(-1, 0, 'Retirar no Local', 'Bocaiuva do Sul - PR')">
+        <input type="radio" name="freteOpcao" value="-1" checked style="accent-color:var(--gold)">
+        <div style="flex:1">
+          <div style="font-size:0.8rem;font-weight:600"><i class="ti ti-map-pin" style="margin-right:4px"></i> Retirar no Local</div>
+          <div style="font-size:0.65rem;color:var(--text-muted);letter-spacing:1px">Bocaiuva do Sul - PR • Grátis</div>
+        </div>
+        <div style="font-size:1rem;font-weight:700;color:var(--success)">GRÁTIS</div>
+      </label>
+    `;
+
+    // Mostrar opções de frete (PAC, SEDEX)
     const opcoesHTML = data.fretes.map((f, idx) => {
       const prazoTexto = f.prazoMin && f.prazoMax
         ? `${f.prazoMin}-${f.prazoMax} dias úteis`
         : `${f.prazo} dias úteis`;
       return `
-      <label class="frete-opcao" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid ${idx === 0 ? 'var(--gold)' : 'var(--border)'};border-radius:8px;cursor:pointer;transition:all 0.2s;background:${idx === 0 ? 'rgba(212,175,55,0.06)' : 'transparent'}" onclick="selecionarFrete(${idx}, ${f.valor}, '${f.nome}', '${prazoTexto}')">
-        <input type="radio" name="freteOpcao" value="${idx}" ${idx === 0 ? 'checked' : ''} style="accent-color:var(--gold)">
+      <label class="frete-opcao" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all 0.2s;background:transparent" onclick="selecionarFrete(${idx}, ${f.valor}, '${f.nome}', '${prazoTexto}')">
+        <input type="radio" name="freteOpcao" value="${idx}" style="accent-color:var(--gold)">
         <div style="flex:1">
           <div style="font-size:0.8rem;font-weight:600">${f.nome}</div>
           <div style="font-size:0.65rem;color:var(--text-muted);letter-spacing:1px">Prazo: ${prazoTexto}</div>
@@ -941,14 +953,17 @@ async function calcularFrete() {
     container.innerHTML = `
       <div style="margin-bottom:12px">
         <div style="font-size:0.7rem;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px">
-          Frete para ${end.cidade || ''} - ${end.estado || ''}
+          Opções de entrega
         </div>
+        ${retiradaHTML}
+        <div style="margin-top:8px;font-size:0.65rem;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px">Ou receba em casa:</div>
         ${opcoesHTML}
       </div>
     `;
 
-    // Selecionar a primeira opção automaticamente
-    freteValor = data.fretes[0].valor;
+    // Selecionar "Retirar no Local" como padrão
+    freteValor = 0;
+    freteSelecionado = { nome: 'Retirar no Local', prazo: 'Bocaiuva do Sul - PR', valor: 0 };
     atualizarResumo();
     document.getElementById('btnConfirmar').disabled = false;
 

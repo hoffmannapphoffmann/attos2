@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATTOS2 — Admin Configurações</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<link rel="icon" type="image/png" href="../../logo2.png">
+<script src="../../js/audit.js"></script>
+<style>
+:root {
+  --gold: #D4AF37; --gold2: #FFD700;
+  --bg: #0a0a0a; --bg2: #111; --card: #1a1a1a;
+  --border: rgba(212,175,55,0.15);
+  --text: rgba(255,255,255,0.85); --text2: rgba(255,255,255,0.5);
+  --success: #4CAF50; --danger: #f44336;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background: var(--bg); color: var(--text); font-family: Arial, sans-serif; min-height: 100vh; }
+
+.admin-sidebar {
+  position: fixed; left: 0; top: 0; bottom: 0;
+  width: 220px; background: var(--bg2);
+  border-right: 1px solid var(--border);
+  padding: 24px 16px;
+  display: flex; flex-direction: column; z-index: 10;
+}
+.admin-sidebar .logo-sm { height: 28px; margin-bottom: 24px; opacity: 0.8; }
+.admin-sidebar nav { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.admin-sidebar a {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 8px;
+  color: var(--text2); text-decoration: none;
+  font-size: 0.75rem; letter-spacing: 1px; transition: all 0.2s;
+}
+.admin-sidebar a:hover, .admin-sidebar a.active { background: rgba(212,175,55,0.08); color: var(--gold); }
+.admin-sidebar .sair {
+  margin-top: auto; color: var(--text2); cursor: pointer;
+  padding: 10px 12px; border-radius: 8px;
+  font-size: 0.75rem; letter-spacing: 1px;
+  display: flex; align-items: center; gap: 10px;
+  transition: all 0.2s; border: none; background: none; font-family: Arial, sans-serif; width: 100%;
+}
+.admin-sidebar .sair:hover { background: rgba(244,67,54,0.1); color: var(--danger); }
+
+.admin-main { margin-left: 220px; padding: 32px; min-height: 100vh; }
+.admin-header { margin-bottom: 32px; }
+.admin-header h1 { font-size: 1.3rem; letter-spacing: 3px; font-weight: 400; }
+.admin-header h1 em { color: var(--gold); font-style: italic; }
+
+/* CARDS DE CONFIG */
+.config-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+}
+.config-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 24px;
+}
+.config-card h2 {
+  font-size: 0.8rem; letter-spacing: 2px; font-weight: 400;
+  margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+}
+.config-card h2 i { color: var(--gold); }
+
+.form-group { margin-bottom: 12px; }
+.form-group label {
+  font-size: 0.6rem; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--text2); display: block; margin-bottom: 4px;
+}
+.form-group input, .form-group textarea {
+  width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border); border-radius: 8px; color: #fff;
+  font-size: 0.85rem; outline: none; font-family: Arial, sans-serif;
+}
+.form-group input:focus, .form-group textarea:focus { border-color: var(--gold); }
+.form-group textarea { resize: vertical; min-height: 60px; }
+
+.btn-save {
+  padding: 10px 24px;
+  background: linear-gradient(135deg, var(--gold), var(--gold2));
+  border: none; border-radius: 8px; color: #050505;
+  font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase;
+  font-weight: 700; cursor: pointer; transition: all 0.3s; font-family: Arial, sans-serif;
+}
+.btn-save:hover { box-shadow: 0 0 20px rgba(212,175,55,0.3); }
+.btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* CUPONS */
+.cupom-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+}
+.cupom-item:last-child { border-bottom: none; }
+.cupom-item .cupom-codigo {
+  font-family: monospace; font-size: 0.85rem; color: var(--gold);
+  background: rgba(212,175,55,0.08); padding: 2px 8px; border-radius: 4px;
+}
+.cupom-item .cupom-valor { font-size: 0.8rem; color: var(--text); margin-left: auto; }
+.cupom-item .cupom-remove {
+  background: none; border: none; color: var(--danger);
+  cursor: pointer; font-size: 1rem; opacity: 0.6; transition: opacity 0.2s;
+}
+.cupom-item .cupom-remove:hover { opacity: 1; }
+
+.cupom-add {
+  display: flex; gap: 8px; margin-top: 12px;
+}
+.cupom-add input {
+  flex: 1; padding: 8px 12px; background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border); border-radius: 6px; color: #fff;
+  font-size: 0.75rem; outline: none; font-family: Arial, sans-serif;
+}
+.cupom-add input:focus { border-color: var(--gold); }
+.cupom-add .btn-add {
+  padding: 8px 16px; background: rgba(212,175,55,0.15);
+  border: 1px solid rgba(212,175,55,0.3); border-radius: 6px;
+  color: var(--gold); cursor: pointer; font-size: 0.7rem;
+  letter-spacing: 1px; text-transform: uppercase; font-weight: 700;
+  transition: all 0.2s; font-family: Arial, sans-serif;
+}
+.cupom-add .btn-add:hover { background: rgba(212,175,55,0.25); }
+
+@media (max-width: 768px) {
+  .admin-sidebar { width: 60px; padding: 16px 8px; }
+  .admin-sidebar a span, .admin-sidebar .sair span { display: none; }
+  .admin-main { margin-left: 60px; padding: 20px 16px; }
+  .config-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<aside class="admin-sidebar">
+  <img src="../../logo2.png" class="logo-sm" alt="ATTOS2">
+  <nav>
+    <a href="index.html"><i class="ti ti-dashboard"></i><span>Dashboard</span></a>
+    <a href="produtos.html"><i class="ti ti-shirt"></i><span>Produtos</span></a>
+    <a href="pedidos.html"><i class="ti ti-package"></i><span>Pedidos</span></a>
+    <a href="config.html" class="active"><i class="ti ti-settings"></i><span>Configurações</span></a>
+  </nav>
+  <button class="sair" onclick="logoutAdmin()"><i class="ti ti-logout"></i><span>Sair</span></button>
+</aside>
+
+<main class="admin-main">
+  <div class="admin-header">
+    <h1>Configurações <em>da Loja</em></h1>
+  </div>
+
+  <div class="config-grid">
+    <!-- CUPONS -->
+    <div class="config-card">
+      <h2><i class="ti ti-tag"></i> Cupons de Desconto</h2>
+      <div id="listaCupons">
+        <p style="color:var(--text2);font-size:0.75rem">Carregando...</p>
+      </div>
+      <div class="cupom-add">
+        <input type="text" id="novoCupomCodigo" placeholder="Código (ex: DEUS10)" style="text-transform:uppercase">
+        <input type="number" id="novoCupomValor" placeholder="%" min="1" max="100" style="max-width:70px">
+        <button class="btn-add" onclick="adicionarCupom()">+</button>
+      </div>
+    </div>
+
+    <!-- VERSÍCULO DO DIA -->
+    <div class="config-card">
+      <h2><i class="ti ti-bible"></i> Versículo do Dia</h2>
+      <div class="form-group">
+        <label>Texto do Versículo</label>
+        <textarea id="versiculoTexto" placeholder="Ex: E todos foram cheios do Espírito Santo"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Referência</label>
+        <input type="text" id="versiculoRef" placeholder="Ex: Atos 2:4">
+      </div>
+      <button class="btn-save" onclick="salvarVersiculo()">Salvar Versículo</button>
+    </div>
+
+    <!-- MÚSICA DE FUNDO -->
+    <div class="config-card">
+      <h2><i class="ti ti-music"></i> Música de Fundo</h2>
+      <p style="font-size:0.7rem;color:var(--text2);margin-bottom:12px">
+        Faça upload da música que toca no site (MP3). A música atual é "Gabriela Rocha - Atos 2".
+      </p>
+      <div class="form-group">
+        <label>Arquivo MP3</label>
+        <input type="file" id="musicaUpload" accept=".mp3,audio/mpeg">
+      </div>
+      <div id="musicaStatus" style="font-size:0.7rem;color:var(--text2);margin-bottom:8px">
+        Nenhuma música personalizada enviada ainda.
+      </div>
+      <button class="btn-save" id="btnUploadMusica" onclick="uploadMusica()">
+        <i class="ti ti-upload"></i> Enviar Música
+      </button>
+      <button class="btn-save" id="btnResetarMusica" onclick="resetarMusica()" style="background:rgba(244,67,54,0.2);color:var(--danger);margin-left:8px">
+        <i class="ti ti-refresh"></i> Restaurar Original
+      </button>
+    </div>
+
+    <!-- ADMIN USERS -->
+    <div class="config-card">
+      <h2><i class="ti ti-shield-lock"></i> Administradores</h2>
+      <p style="font-size:0.7rem;color:var(--text2);margin-bottom:12px">Adicione um usuário para torná-lo administrador.</p>
+      <div class="form-group">
+        <label>Nome do Administrador</label>
+        <input type="text" id="novoAdminNome" placeholder="Ex: João Silva">
+      </div>
+      <div class="form-group">
+        <label>UID do Usuário (Firebase Auth)</label>
+        <input type="text" id="novoAdminUid" placeholder="Cole o UID do Firebase Auth">
+      </div>
+      <button class="btn-save" onclick="adicionarAdmin()">Adicionar Admin</button>
+      <div id="listaAdmins" style="margin-top:12px">
+        <p style="color:var(--text2);font-size:0.75rem">Carregando...</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBVXuBi31G9pfviNGUY6uZ_1cFudKthmU0",
+  authDomain: "attos2-c2644.firebaseapp.com",
+  projectId: "attos2-c2644",
+  storageBucket: "attos2-c2644.firebasestorage.app",
+  messagingSenderId: "1021391388902",
+  appId: "1:1021391388902:web:b349b39a74994569bebb27",
+  measurementId: "G-WQYHW5DPBC"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+const CONFIG_DOC = 'loja-config';
+
+auth.onAuthStateChanged(async user => {
+  if (!user) { window.location.href = 'index.html'; return; }
+  try {
+    const doc = await db.collection('admins').doc(user.uid).get();
+    if (!doc.exists) { auth.signOut(); window.location.href = 'index.html'; }
+  } catch(e) { auth.signOut(); window.location.href = 'index.html'; }
+});
+
+function logoutAdmin() { auth.signOut(); window.location.href = 'index.html'; }
+
+// ============================================
+// CARREGAR CONFIG
+// ============================================
+async function carregarConfig() {
+  try {
+    const doc = await db.collection('config').doc(CONFIG_DOC).get();
+    if (!doc.exists) return;
+    const cfg = doc.data();
+
+    // Versículo
+    if (cfg.versiculo_dia) {
+      document.getElementById('versiculoTexto').value = cfg.versiculo_dia.texto || '';
+      document.getElementById('versiculoRef').value = cfg.versiculo_dia.referencia || '';
+    }
+
+    // Cupons
+    renderizarCupons(cfg.cupons || {});
+  } catch (err) {
+    console.error('Erro ao carregar config:', err);
+  }
+}
+
+// ============================================
+// CUPONS
+// ============================================
+function renderizarCupons(cupons) {
+  const container = document.getElementById('listaCupons');
+  const keys = Object.keys(cupons);
+  if (keys.length === 0) {
+    container.innerHTML = '<p style="color:var(--text2);font-size:0.75rem">Nenhum cupom cadastrado.</p>';
+    return;
+  }
+  container.innerHTML = keys.map(codigo => `
+    <div class="cupom-item">
+      <span class="cupom-codigo">${codigo}</span>
+      <span class="cupom-valor">${cupons[codigo]}% OFF</span>
+      <button class="cupom-remove" onclick="removerCupom('${codigo}')"><i class="ti ti-x"></i></button>
+    </div>
+  `).join('');
+}
+
+async function adicionarCupom() {
+  const codigo = document.getElementById('novoCupomCodigo').value.trim().toUpperCase();
+  const valor = parseInt(document.getElementById('novoCupomValor').value);
+
+  if (!codigo || !valor || valor < 1 || valor > 100) {
+    alert('Preencha código e valor (1-100).');
+    return;
+  }
+
+  try {
+    const doc = await db.collection('config').doc(CONFIG_DOC).get();
+    const cupons = (doc.data() && doc.data().cupons) || {};
+    cupons[codigo] = valor;
+
+    await db.collection('config').doc(CONFIG_DOC).set({ cupons }, { merge: true });
+
+    await registrarAuditoria(db, auth.currentUser, 'adicionou_cupom',
+      `Cupom: ${codigo} — ${valor}% OFF`
+    );
+
+    document.getElementById('novoCupomCodigo').value = '';
+    document.getElementById('novoCupomValor').value = '';
+    renderizarCupons(cupons);
+  } catch (err) {
+    console.error('Erro ao adicionar cupom:', err);
+    alert('Erro ao adicionar cupom.');
+  }
+}
+
+async function removerCupom(codigo) {
+  try {
+    const doc = await db.collection('config').doc(CONFIG_DOC).get();
+    const cupons = (doc.data() && doc.data().cupons) || {};
+    delete cupons[codigo];
+
+    await db.collection('config').doc(CONFIG_DOC).set({ cupons }, { merge: true });
+    renderizarCupons(cupons);
+  } catch (err) {
+    console.error('Erro ao remover cupom:', err);
+  }
+}
+
+// ============================================
+// VERSÍCULO
+// ============================================
+async function salvarVersiculo() {
+  const texto = document.getElementById('versiculoTexto').value.trim();
+  const referencia = document.getElementById('versiculoRef').value.trim();
+
+  if (!texto || !referencia) { alert('Preencha texto e referência.'); return; }
+
+  const btn = document.querySelector('.config-card:nth-child(3) .btn-save');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+
+  try {
+    await db.collection('config').doc(CONFIG_DOC).set(
+      { versiculo_dia: { texto, referencia } },
+      { merge: true }
+    );
+    alert('Versículo salvo com sucesso!');
+  } catch (err) {
+    console.error('Erro ao salvar versículo:', err);
+    alert('Erro ao salvar versículo.');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Salvar Versículo';
+}
+
+// ============================================
+// ADMIN USERS
+// ============================================
+async function adicionarAdmin() {
+  const uid = document.getElementById('novoAdminUid').value.trim();
+  const nome = document.getElementById('novoAdminNome').value.trim();
+  if (!uid) { alert('Cole o UID do usuário.'); return; }
+  if (!nome) { alert('Digite o nome do administrador.'); return; }
+
+  try {
+    await db.collection('admins').doc(uid).set({
+      nome: nome,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    document.getElementById('novoAdminUid').value = '';
+    document.getElementById('novoAdminNome').value = '';
+    carregarAdmins();
+    alert('Administrador adicionado!');
+  } catch (err) {
+    console.error('Erro ao adicionar admin:', err);
+    alert('Erro ao adicionar admin.');
+  }
+}
+
+async function carregarAdmins() {
+  try {
+    const snap = await db.collection('admins').get();
+    const container = document.getElementById('listaAdmins');
+    if (snap.empty) {
+      container.innerHTML = '<p style="color:var(--text2);font-size:0.75rem">Nenhum admin cadastrado.</p>';
+      return;
+    }
+
+    const linhas = await Promise.all(snap.docs.map(async doc => {
+      const uid = doc.id;
+      const adminData = doc.data();
+      // 1º: nome salvo no documento admins
+      let nome = adminData.nome || '';
+      if (!nome) {
+        // 2º: buscar na coleção clientes
+        try {
+          const clienteDoc = await db.collection('clientes').doc(uid).get();
+          if (clienteDoc.exists && clienteDoc.data().nome) {
+            nome = clienteDoc.data().nome;
+          }
+        } catch(e) {}
+      }
+      if (!nome) nome = uid.substring(0, 12) + '...';
+      return `
+        <div class="cupom-item">
+          <span style="font-size:0.8rem;color:var(--text)">${nome}</span>
+          <span style="font-size:0.6rem;color:var(--text2);font-family:monospace;margin-left:8px">${uid.substring(0, 8)}...</span>
+          <button class="cupom-remove" onclick="removerAdmin('${uid}')"><i class="ti ti-x"></i></button>
+        </div>
+      `;
+    }));
+
+    container.innerHTML = linhas.join('');
+  } catch (err) {
+    console.error('Erro ao carregar admins:', err);
+  }
+}
+
+async function removerAdmin(uid) {
+  if (!confirm('Remover este administrador?')) return;
+  try {
+    await db.collection('admins').doc(uid).delete();
+    carregarAdmins();
+  } catch (err) {
+    console.error('Erro ao remover admin:', err);
+  }
+}
+
+// ============================================
+// MÚSICA DE FUNDO — UPLOAD E RESET
+// ============================================
+const storage = firebase.storage();
+const MUSIC_STORAGE_PATH = 'musica/background.mp3';
+
+// Verificar status da música atual ao carregar
+async function verificarStatusMusica() {
+  try {
+    const configDoc = await db.collection('config').doc(CONFIG_DOC).get();
+    if (configDoc.exists && configDoc.data().musicaUrl) {
+      document.getElementById('musicaStatus').innerHTML =
+        '<span style="color:var(--success)">✅ Música personalizada ativa!</span>';
+    } else {
+      document.getElementById('musicaStatus').innerHTML =
+        '<span style="color:var(--text2)">🎵 Usando música original (Gabriela Rocha - Atos 2)</span>';
+    }
+  } catch (err) {
+    console.warn('Erro ao verificar status da música:', err);
+  }
+}
+
+async function uploadMusica() {
+  const fileInput = document.getElementById('musicaUpload');
+  const file = fileInput.files[0];
+
+  if (!file) {
+    alert('Selecione um arquivo MP3 primeiro.');
+    return;
+  }
+
+  if (!file.name.toLowerCase().endsWith('.mp3') && file.type !== 'audio/mpeg') {
+    alert('Apenas arquivos MP3 são aceitos.');
+    return;
+  }
+
+  const btn = document.getElementById('btnUploadMusica');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader"></i> Enviando...';
+
+  try {
+    // Upload para o Storage
+    const ref = storage.ref(MUSIC_STORAGE_PATH);
+    const snapshot = await ref.put(file, { contentType: 'audio/mpeg' });
+    const downloadUrl = await ref.getDownloadURL();
+
+    // Salvar URL no Firestore
+    await db.collection('config').doc(CONFIG_DOC).set(
+      { musicaUrl: downloadUrl },
+      { merge: true }
+    );
+
+    await registrarAuditoria(db, auth.currentUser, 'alterou_musica',
+      `Nova música: ${file.name}`
+    );
+
+    document.getElementById('musicaStatus').innerHTML =
+      '<span style="color:var(--success)">✅ Música atualizada com sucesso!</span>';
+    alert('Música enviada e atualizada! O site agora tocará a nova música.');
+    fileInput.value = '';
+  } catch (err) {
+    console.error('Erro ao enviar música:', err);
+    alert('Erro ao enviar música: ' + err.message);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-upload"></i> Enviar Música';
+}
+
+async function resetarMusica() {
+  if (!confirm('Restaurar a música original (Gabriela Rocha - Atos 2)?')) return;
+
+  const btn = document.getElementById('btnResetarMusica');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader"></i> Restaurando...';
+
+  try {
+    // Remover a URL personalizada do Firestore
+    await db.collection('config').doc(CONFIG_DOC).set(
+      { musicaUrl: firebase.firestore.FieldValue.delete() },
+      { merge: true }
+    );
+
+    await registrarAuditoria(db, auth.currentUser, 'resetou_musica',
+      'Restaurada música original (Gabriela Rocha - Atos 2)'
+    );
+
+    document.getElementById('musicaStatus').innerHTML =
+      '<span style="color:var(--text2)">🎵 Música original restaurada!</span>';
+    alert('Música original restaurada! O site voltará a tocar Gabriela Rocha - Atos 2.');
+  } catch (err) {
+    console.error('Erro ao resetar música:', err);
+    alert('Erro ao resetar música.');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-refresh"></i> Restaurar Original';
+}
+
+// ============================================
+// INICIAR
+// ============================================
+carregarConfig();
+carregarAdmins();
+verificarStatusMusica();
+</script>
+</body>
+</html>

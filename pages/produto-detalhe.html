@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ATTOS2 - Detalhe do Produto</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+  <style>
+    /* ============================================
+       PÁGINA DE DETALHE DO PRODUTO
+       ============================================ */
+    .produto-detalhe {
+      max-width: 1200px;
+      margin: 100px auto 60px;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 50px;
+      align-items: start;
+    }
+
+    /* Galeria de imagens */
+    .produto-galeria {
+      position: sticky;
+      top: 100px;
+    }
+
+    .produto-imagem-principal {
+      width: 100%;
+      aspect-ratio: 1;
+      background: var(--card-bg);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      cursor: zoom-in;
+    }
+
+    .produto-imagem-principal img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.4s ease;
+    }
+
+    .produto-imagem-principal:hover img {
+      transform: scale(1.05);
+    }
+
+    .produto-imagem-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 14px;
+      gap: 10px;
+    }
+
+    .produto-imagem-placeholder i {
+      font-size: 64px;
+      opacity: 0.3;
+    }
+
+    /* Breadcrumb */
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .breadcrumb a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.3s;
+    }
+
+    .breadcrumb a:hover {
+      color: var(--gold);
+    }
+
+    .breadcrumb span {
+      color: var(--text);
+    }
+
+    /* Informações do produto */
+    .produto-info {
+      padding-top: 10px;
+    }
+
+    .produto-info-codigo {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .produto-info-nome {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+      line-height: 1.2;
+    }
+
+    .produto-info-versiculo {
+      font-size: 16px;
+      color: var(--gold);
+      font-style: italic;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .produto-info-versiculo i {
+      font-size: 18px;
+    }
+
+    .produto-info-preco {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 24px;
+    }
+
+    .produto-info-descricao {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.7;
+      margin-bottom: 28px;
+      padding: 16px 20px;
+      background: var(--card-bg);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    /* Seletor de corte/modelo */
+    .seletor-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .cortes-opcoes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .corte-btn {
+      padding: 8px 18px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card-bg);
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .corte-btn:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+
+    .corte-btn.active {
+      background: var(--gold);
+      color: #000;
+      border-color: var(--gold);
+      font-weight: 600;
+    }
+
+    /* Seletor de tamanho */
+    .tamanhos-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .tam-btn {
+      width: 48px;
+      height: 48px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card-bg);
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tam-btn:hover:not(.disabled) {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+
+    .tam-btn.active {
+      background: var(--gold);
+      color: #000;
+      border-color: var(--gold);
+    }
+
+    .tam-btn.disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      text-decoration: line-through;
+    }
+
+    /* Seletor de cor */
+    .cores-opcoes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .cor-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .cor-btn:hover {
+      transform: scale(1.15);
+    }
+
+    .cor-btn.active {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(212,175,55,0.3);
+    }
+
+    .cor-btn .cor-nome {
+      position: absolute;
+      bottom: -22px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .cor-btn:hover .cor-nome {
+      opacity: 1;
+    }
+
+    /* Botão adicionar ao carrinho */
+    .btn-add-carrinho {
+      width: 100%;
+      padding: 16px 32px;
+      background: linear-gradient(135deg, var(--gold), #b8962f);
+      color: #000;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .btn-add-carrinho:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(212,175,55,0.3);
+    }
+
+    .btn-add-carrinho:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-add-carrinho i {
+      font-size: 20px;
+    }
+
+    /* Estoque info */
+    .estoque-info {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      margin-bottom: 16px;
+    }
+
+    .estoque-info .disponivel {
+      color: #4CAF50;
+    }
+
+    .estoque-info .esgotado {
+      color: #f44336;
+    }
+
+    /* Responsivo */
+    @media (max-width: 768px) {
+      .produto-detalhe {
+        grid-template-columns: 1fr;
+        gap: 30px;
+        margin-top: 80px;
+      }
+
+      .produto-galeria {
+        position: static;
+      }
+
+      .produto-info-nome {
+        font-size: 22px;
+      }
+
+      .produto-info-preco {
+        font-size: 26px;
+      }
+
+      .produto-imagem-principal {
+        aspect-ratio: 3/4;
+      }
+    }
+
+    /* Loading */
+    .detalhe-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      gap: 16px;
+      color: var(--text-muted);
+    }
+
+    .detalhe-loading .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Toast de feedback */
+    .toast-add {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: #4CAF50;
+      color: #fff;
+      padding: 14px 24px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 8px 30px rgba(76,175,80,0.3);
+      z-index: 9999;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.4s ease;
+    }
+
+    .toast-add.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  .footer-credits{display:flex;align-items:center;gap:16px}
+  @media(max-width:768px){.footer-credits{flex-wrap:wrap;justify-content:center;gap:8px}}
+  </style>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="../index.html" class="nav-logo">
+        <img src="../logo2.png" alt="ATTOS2" height="32">
+      </a>
+      <div class="nav-links">
+        <a href="../index.html">Home</a>
+        <a href="produtos.html">Produtos</a>
+        <a href="carrinho.html" class="nav-cart">
+          <i class="ti ti-shopping-cart"></i>
+          <span class="cart-badge" id="cartCountNav">0</span>
+        </a>
+        <a href="login.html" id="navUser">
+          <i class="ti ti-user"></i>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- CONTEÚDO -->
+  <div id="detalheLoading" class="detalhe-loading">
+    <div class="spinner"></div>
+    <span>Carregando produto...</span>
+  </div>
+
+  <div id="produtoDetalhe" class="produto-detalhe" style="display:none">
+    <!-- Coluna 1: Galeria -->
+    <div class="produto-galeria">
+      <div class="breadcrumb">
+        <a href="../index.html">Home</a>
+        <i class="ti ti-chevron-right" style="font-size:12px"></i>
+        <a href="produtos.html">Produtos</a>
+        <i class="ti ti-chevron-right" style="font-size:12px"></i>
+        <span id="breadcrumbNome">Produto</span>
+      </div>
+      <div class="produto-imagem-principal" id="produtoImagem">
+        <div class="produto-imagem-placeholder" id="imagemPlaceholder">
+          <i class="ti ti-photo"></i>
+          <span>Imagem do produto</span>
+        </div>
+        <img id="produtoImg" src="" alt="" style="display:none">
+      </div>
+    </div>
+
+    <!-- Coluna 2: Informações -->
+    <div class="produto-info">
+      <div class="produto-info-codigo" id="produtoCodigo">---</div>
+      <h1 class="produto-info-nome" id="produtoNome">---</h1>
+      <div class="produto-info-versiculo" id="produtoVersiculo" style="display:none">
+        <i class="ti ti-bible"></i>
+        <span></span>
+      </div>
+      <div class="produto-info-preco" id="produtoPreco">R$ 0,00</div>
+      <div class="produto-info-descricao" id="produtoDescricao" style="display:none"></div>
+
+      <!-- Categoria -->
+      <div style="margin-bottom:16px">
+        <span class="seletor-label">Categoria</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <span class="corte-btn" id="produtoCategoria" style="cursor:default;background:var(--gold);color:#000;border-color:var(--gold)"></span>
+        </div>
+      </div>
+
+      <!-- Cortes/Modelos -->
+      <div id="cortesSection" style="display:none">
+        <span class="seletor-label">Modelo / Corte</span>
+        <div class="cortes-opcoes" id="cortesContainer"></div>
+      </div>
+
+      <!-- Cores -->
+      <div id="coresSection" style="display:none">
+        <span class="seletor-label">Cor</span>
+        <div class="cores-opcoes" id="coresContainer"></div>
+      </div>
+
+      <!-- Tamanhos -->
+      <div id="tamanhosSection" style="display:none">
+        <span class="seletor-label">Tamanho</span>
+        <div class="tamanhos-grid" id="tamanhosContainer"></div>
+        <div class="estoque-info" id="estoqueInfo"></div>
+      </div>
+
+      <!-- Botão -->
+      <button class="btn-add-carrinho" id="btnAddCarrinho" disabled>
+        <i class="ti ti-shopping-cart-plus"></i>
+        Adicionar ao Carrinho
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-add" id="toastAdd">
+    <i class="ti ti-check"></i>
+    <span>Adicionado ao carrinho!</span>
+  </div>
+
+  <!-- FIREBASE -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+    import { getFirestore, collection, doc, getDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBVXuBi31G9pfviNGUY6uZ_1cFudKthmU0",
+      authDomain: "attos2-c2644.firebaseapp.com",
+      projectId: "attos2-c2644",
+      storageBucket: "attos2-c2644.firebasestorage.app",
+      messagingSenderId: "1021391388902",
+      appId: "1:1021391388902:web:b349b39a74994569bebb27"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    // Estado
+    let produto = null;
+    let corteSelecionado = null;
+    let tamanhoSelecionado = null;
+    let corSelecionada = null;
+
+    // ============================================
+    // INICIALIZAR
+    // ============================================
+    async function init() {
+      const params = new URLSearchParams(window.location.search);
+      const produtoId = params.get('id');
+
+      if (!produtoId) {
+        document.getElementById('detalheLoading').innerHTML = `
+          <i class="ti ti-mood-sad" style="font-size:48px;opacity:0.5"></i>
+          <span>Produto não encontrado.</span>
+          <a href="produtos.html" style="color:var(--gold);margin-top:8px">Ver todos os produtos</a>
+        `;
+        return;
+      }
+
+      try {
+        const docRef = doc(db, "produtos", produtoId);
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) {
+          document.getElementById('detalheLoading').innerHTML = `
+            <i class="ti ti-mood-sad" style="font-size:48px;opacity:0.5"></i>
+            <span>Produto não encontrado.</span>
+            <a href="produtos.html" style="color:var(--gold);margin-top:8px">Ver todos os produtos</a>
+          `;
+          return;
+        }
+
+        produto = { id: docSnap.id, ...docSnap.data() };
+        renderizarProduto();
+
+      } catch (err) {
+        console.error("Erro ao carregar produto:", err);
+        document.getElementById('detalheLoading').innerHTML = `
+          <i class="ti ti-cloud-off" style="font-size:48px;opacity:0.5"></i>
+          <span>Erro ao carregar produto.</span>
+          <a href="produtos.html" style="color:var(--gold);margin-top:8px">Voltar</a>
+        `;
+      }
+    }
+
+    // ============================================
+    // RENDERIZAR PRODUTO
+    // ============================================
+    function renderizarProduto() {
+      const p = produto;
+
+      // Breadcrumb
+      document.getElementById('breadcrumbNome').textContent = p.nome;
+
+      // Código
+      document.getElementById('produtoCodigo').textContent = p.codigo || `#${p.id.substring(0, 8)}`;
+
+      // Nome
+      document.getElementById('produtoNome').textContent = p.nome;
+
+      // Versículo
+      const verseEl = document.getElementById('produtoVersiculo');
+      if (p.versiculo) {
+        verseEl.style.display = 'flex';
+        verseEl.querySelector('span').textContent = p.versiculo;
+      }
+
+      // Preço
+      document.getElementById('produtoPreco').textContent = `R$ ${(p.preco || 0).toFixed(2).replace('.',',')}`;
+
+      // Descrição
+      const descEl = document.getElementById('produtoDescricao');
+      if (p.descricao) {
+        descEl.style.display = 'block';
+        descEl.textContent = p.descricao;
+      }
+
+      // Categoria
+      const catMap = { masculino: 'Masculino', feminino: 'Feminino', infantil: 'Infantil', acessorios: 'Acessórios' };
+      document.getElementById('produtoCategoria').textContent = catMap[p.categoria] || p.categoria;
+
+      // Imagem
+      if (p.imagemUrl) {
+        const img = document.getElementById('produtoImg');
+        img.src = p.imagemUrl;
+        img.style.display = 'block';
+        document.getElementById('imagemPlaceholder').style.display = 'none';
+      }
+
+      // Cortes/Modelos
+      const modelos = p.modelos || {};
+      const cortes = Object.keys(modelos);
+      if (cortes.length > 0) {
+        document.getElementById('cortesSection').style.display = 'block';
+        const container = document.getElementById('cortesContainer');
+        container.innerHTML = cortes.map(c => `
+          <button class="corte-btn" data-corte="${c}" onclick="window.selecionarCorte('${c}')">
+            ${c}
+          </button>
+        `).join('');
+        // Selecionar primeiro corte
+        window.selecionarCorte(cortes[0]);
+      }
+
+      // Cores
+      const cores = p.cores || [];
+      if (cores.length > 0) {
+        document.getElementById('coresSection').style.display = 'block';
+        const container = document.getElementById('coresContainer');
+        const corCores = {
+          'Preto': '#000000',
+          'Branco': '#FFFFFF',
+          'Cinza': '#808080',
+          'Azul': '#2196F3',
+          'Azul Marinho': '#0D47A1',
+          'Azul Bebê': '#BBDEFB',
+          'Azul Claro': '#90CAF9',
+          'Verde': '#4CAF50',
+          'Vinho': '#880E4F',
+          'Rosa': '#E91E63',
+          'Rosa Claro': '#F8BBD0',
+          'Lavanda': '#9C27B0',
+          'Lilás': '#CE93D8',
+          'Dourado': '#D4AF37',
+          'Amarelo': '#FFEB3B',
+          'Colorido': 'linear-gradient(135deg, #f44336, #ff9800, #4caf50, #2196f3)'
+        };
+        container.innerHTML = cores.map(c => `
+          <button class="cor-btn" data-cor="${c}" onclick="window.selecionarCor('${c}')"
+                  style="background:${corCores[c] || '#ccc'}; ${c === 'Branco' ? 'border-color:#ddd;' : ''}"
+                  title="${c}">
+            <span class="cor-nome">${c}</span>
+          </button>
+        `).join('');
+        // Selecionar primeira cor
+        window.selecionarCor(cores[0]);
+      }
+
+      // Mostrar conteúdo
+      document.getElementById('detalheLoading').style.display = 'none';
+      document.getElementById('produtoDetalhe').style.display = 'grid';
+    }
+
+    // ============================================
+    // SELECIONAR CORTE
+    // ============================================
+    window.selecionarCorte = function(corte) {
+      corteSelecionado = corte;
+      tamanhoSelecionado = null;
+
+      // Atualizar UI dos cortes
+      document.querySelectorAll('.corte-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.corte === corte);
+      });
+
+      // Renderizar tamanhos disponíveis para este corte
+      const modelos = produto.modelos || {};
+      const estoques = modelos[corte] || {};
+      const tamanhos = Object.keys(estoques);
+
+      document.getElementById('tamanhosSection').style.display = 'block';
+      const container = document.getElementById('tamanhosContainer');
+      container.innerHTML = tamanhos.map(t => {
+        const qtd = estoques[t] || 0;
+        const disabled = qtd <= 0;
+        return `
+          <button class="tam-btn ${disabled ? 'disabled' : ''}" 
+                  data-tamanho="${t}" 
+                  onclick="${disabled ? '' : "window.selecionarTamanho('" + t + "')"}"
+                  title="${disabled ? 'Esgotado' : qtd + ' disponíveis'}">
+            ${t}
+          </button>
+        `;
+      }).join('');
+
+      document.getElementById('estoqueInfo').innerHTML = '';
+      document.getElementById('btnAddCarrinho').disabled = true;
+    };
+
+    // ============================================
+    // SELECIONAR TAMANHO
+    // ============================================
+    window.selecionarTamanho = function(tamanho) {
+      tamanhoSelecionado = tamanho;
+
+      // Atualizar UI
+      document.querySelectorAll('.tam-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tamanho === tamanho);
+      });
+
+      // Mostrar estoque
+      const modelos = produto.modelos || {};
+      const estoques = modelos[corteSelecionado] || {};
+      const qtd = estoques[tamanho] || 0;
+      const info = document.getElementById('estoqueInfo');
+      if (qtd > 0 && qtd <= 5) {
+        info.innerHTML = `<span class="disponivel">Apenas ${qtd} unidades restantes!</span>`;
+      } else if (qtd > 5) {
+        info.innerHTML = `<span class="disponivel">Em estoque (${qtd} unidades)</span>`;
+      } else {
+        info.innerHTML = `<span class="esgotado">Produto esgotado neste tamanho</span>`;
+      }
+
+      // Habilitar botão
+      document.getElementById('btnAddCarrinho').disabled = false;
+    };
+
+    // ============================================
+    // SELECIONAR COR
+    // ============================================
+    window.selecionarCor = function(cor) {
+      corSelecionada = cor;
+      document.querySelectorAll('.cor-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.cor === cor);
+      });
+    };
+
+    // ============================================
+    // ADICIONAR AO CARRINHO
+    // ============================================
+    window.adicionarAoCarrinho = function() {
+      if (!corteSelecionado || !tamanhoSelecionado) return;
+
+      const item = {
+        id: produto.id,
+        nome: produto.nome,
+        preco: produto.preco,
+        versiculo: produto.versiculo || '',
+        imagem: produto.imagemUrl || '',
+        tamanho: tamanhoSelecionado,
+        corte: corteSelecionado,
+        cor: corSelecionada || '',
+        quantidade: 1
+      };
+
+      // Salvar no localStorage
+      const saved = localStorage.getItem('attos2_carrinho');
+      const carrinho = saved ? JSON.parse(saved) : [];
+      const idx = carrinho.findIndex(i => 
+        i.id === item.id && 
+        i.tamanho === item.tamanho && 
+        i.corte === item.corte &&
+        i.cor === item.cor
+      );
+      if (idx >= 0) {
+        carrinho[idx].quantidade += 1;
+      } else {
+        carrinho.push(item);
+      }
+      localStorage.setItem('attos2_carrinho', JSON.stringify(carrinho));
+
+      // Atualizar badge
+      atualizarBadgeCarrinho();
+
+      // Toast
+      const toast = document.getElementById('toastAdd');
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    };
+
+    function atualizarBadgeCarrinho() {
+      const badge = document.getElementById('cartCountNav');
+      const saved = localStorage.getItem('attos2_carrinho');
+      if (saved) {
+        const itens = JSON.parse(saved);
+        const total = itens.reduce((acc, i) => acc + i.quantidade, 0);
+        badge.textContent = total;
+      } else {
+        badge.textContent = '0';
+      }
+    }
+
+    // Vincular botão
+    document.getElementById('btnAddCarrinho').addEventListener('click', window.adicionarAoCarrinho);
+
+    // ============================================
+    // AUTH STATE
+    // ============================================
+    onAuthStateChanged(auth, (user) => {
+      const navUser = document.getElementById('navUser');
+      if (user) {
+        navUser.innerHTML = `<i class="ti ti-user-check"></i>`;
+        navUser.title = user.email;
+      } else {
+        navUser.innerHTML = `<i class="ti ti-user"></i>`;
+        navUser.href = 'login.html';
+      }
+    });
+
+    // Iniciar
+    init();
+  </script>
+
+<!-- FOOTER -->
+<footer style="position:relative;z-index:1;background:#050505;border-top:1px solid rgba(212,175,55,0.08);padding:32px 20px;margin-top:60px">
+  <div style="display:flex;justify-content:space-between;align-items:center;max-width:1200px;margin:0 auto;flex-wrap:wrap;gap:12px">
+    <div style="font-family:Arial,sans-serif;font-size:0.6rem;letter-spacing:2px;color:rgba(255,255,255,0.25);text-transform:uppercase">© 2026 ATTOS2. Todos os direitos reservados.</div>
+    <div class="footer-credits" style="display:flex;align-items:center;gap:16px">
+      <span style="font-family:Arial,sans-serif;font-size:0.6rem;letter-spacing:1px;color:rgba(255,255,255,0.2)">Desenvolvido por <strong style="color:rgba(255,255,255,0.4)">Cleverson Hoffmann</strong></span>
+      <a href="admin/index.html" style="padding:6px 14px;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.2);border-radius:6px;color:#D4AF37;font-family:Arial,sans-serif;font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;text-decoration:none;transition:all 0.3s;display:flex;align-items:center;gap:4px" onmouseover="this.style.background='rgba(212,175,55,0.2)'" onmouseout="this.style.background='rgba(212,175,55,0.1)'"><i class="ti ti-shield-lock"></i> Admin</a>
+    </div>
+  </div>
+</footer>
+
+</body>

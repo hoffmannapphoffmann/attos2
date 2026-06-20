@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATTOS2 — Carrinho</title>
+<meta name="description" content="Seu carrinho de compras ATTOS2.">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+:root {
+  --gold: #D4AF37;
+  --gold2: #FFD700;
+  --fire1: #FF4500;
+  --fire2: #FF8C00;
+  --bg: #050505;
+  --card-bg: rgba(255,255,255,0.03);
+  --border: rgba(212,175,55,0.15);
+  --text: rgba(255,255,255,0.85);
+  --text-muted: rgba(255,255,255,0.4);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: Arial, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(212,175,55,0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 50%, rgba(255,69,0,0.02) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* NAVBAR SIMPLES */
+.cart-nav {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  border-bottom: 1px solid var(--border);
+}
+.cart-nav a {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  transition: color 0.3s;
+}
+.cart-nav a:hover { color: var(--gold); }
+.cart-nav .logo-sm { height: 32px; opacity: 0.8; }
+
+/* CONTEÚDO */
+.cart-content {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 40px 20px 80px;
+}
+
+.cart-header {
+  margin-bottom: 40px;
+}
+.cart-header h1 {
+  font-size: 1.8rem;
+  letter-spacing: 4px;
+  font-weight: 400;
+  margin-bottom: 8px;
+}
+.cart-header h1 em { color: var(--gold); font-style: italic; }
+.cart-count {
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+/* ITEM DO CARRINHO */
+.cart-item {
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  gap: 20px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+}
+.cart-item-img {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #2E0A4A, #4A0E17);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+}
+.cart-item-info h3 {
+  font-size: 0.95rem;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+  font-weight: 400;
+}
+.cart-item-info .cart-item-verse {
+  font-size: 0.7rem;
+  color: var(--gold);
+  opacity: 0.7;
+}
+.cart-item-info .cart-item-detail {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.cart-item-right {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.cart-item-price {
+  font-size: 1rem;
+  color: var(--gold);
+  letter-spacing: 1px;
+}
+.cart-item-qty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cart-item-qty button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  transition: all 0.3s;
+}
+.cart-item-qty button:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.cart-item-qty span {
+  min-width: 24px;
+  text-align: center;
+  font-size: 0.9rem;
+}
+.cart-item-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.65rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: color 0.3s;
+}
+.cart-item-remove:hover { color: var(--fire1); }
+
+/* RESUMO */
+.cart-summary {
+  margin-top: 40px;
+  padding: 32px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  max-width: 400px;
+  margin-left: auto;
+}
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.summary-row.total {
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+  padding-top: 16px;
+  font-size: 1.1rem;
+  color: var(--gold);
+  font-weight: 700;
+}
+.summary-row.total span:last-child {
+  font-size: 1.3rem;
+}
+.btn-checkout {
+  width: 100%;
+  padding: 16px;
+  margin-top: 20px;
+  background: linear-gradient(135deg, var(--gold), var(--gold2));
+  color: #050505;
+  border: none;
+  border-radius: 8px;
+  font-family: Arial, sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.btn-checkout:hover {
+  box-shadow: 0 0 30px rgba(212,175,55,0.3);
+  transform: translateY(-1px);
+}
+.btn-checkout:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* CARRINHO VAZIO */
+.cart-empty {
+  text-align: center;
+  padding: 80px 20px;
+}
+.cart-empty-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  opacity: 0.4;
+}
+.cart-empty h2 {
+  font-size: 1.4rem;
+  letter-spacing: 3px;
+  font-weight: 400;
+  margin-bottom: 12px;
+}
+.cart-empty p {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 32px;
+}
+.btn-continue {
+  display: inline-block;
+  padding: 14px 36px;
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  text-decoration: none;
+  font-size: 0.7rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  transition: all 0.3s;
+}
+.btn-continue:hover {
+  background: rgba(212,175,55,0.1);
+  box-shadow: 0 0 20px rgba(212,175,55,0.2);
+}
+
+/* FOOTER */
+.cart-footer {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 24px;
+  font-size: 0.6rem;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  border-top: 1px solid var(--border);
+}
+
+/* RESPONSIVO */
+@media (max-width: 600px) {
+  .cart-nav { padding: 12px 16px; }
+  .cart-content { padding: 24px 16px; }
+  .cart-item { grid-template-columns: 60px 1fr; gap: 12px; }
+  .cart-item-right { grid-column: 1 / -1; flex-direction: row; justify-content: space-between; align-items: center; }
+  .cart-item-img { width: 60px; height: 60px; font-size: 1.5rem; }
+  .cart-summary { max-width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<nav class="cart-nav">
+  <a href="../index.html">← Voltar</a>
+  <a href="../index.html"><img src="../logo2.png" class="logo-sm" alt="ATTOS2"></a>
+  <a href="#" id="cartNavAccount">&#x1F464;</a>
+</nav>
+
+<div class="cart-content">
+  <div class="cart-header">
+    <h1>Seu <em>Carrinho</em></h1>
+    <div class="cart-count" id="cartCount">0 itens</div>
+  </div>
+
+  <!-- CARRINHO VAZIO -->
+  <div class="cart-empty" id="cartEmpty">
+    <div class="cart-empty-icon">&#x1F6D2;</div>
+    <h2>Carrinho vazio</h2>
+    <p>Adicione produtos da loja para começar suas compras.</p>
+    <a href="../index.html" class="btn-continue">Ver Produtos</a>
+  </div>
+
+  <!-- LISTA DE ITENS -->
+  <div id="cartItems"></div>
+
+  <!-- RESUMO -->
+  <div class="cart-summary" id="cartSummary" style="display:none">
+    <div class="summary-row">
+      <span>Subtotal</span>
+      <span id="subtotal">R$ 0,00</span>
+    </div>
+    <div class="summary-row">
+      <span>Frete</span>
+      <span id="frete">A calcular</span>
+    </div>
+    <div class="summary-row total">
+      <span>Total</span>
+      <span id="total">R$ 0,00</span>
+    </div>
+    <button class="btn-checkout" id="btnCheckout" onclick="finalizarCompra()">Finalizar Compra</button>
+  </div>
+</div>
+
+<div class="cart-footer">ATTOS² — Vestindo a Chama do Espírito • Atos 2:4</div>
+
+<script>
+// ============================================
+// FIREBASE
+// ============================================
+const firebaseConfig = {
+  apiKey: "AIzaSyBVXuBi31G9pfviNGUY6uZ_1cFudKthmU0",
+  authDomain: "attos2-c2644.firebaseapp.com",
+  projectId: "attos2-c2644",
+  storageBucket: "attos2-c2644.firebasestorage.app",
+  messagingSenderId: "1021391388902",
+  appId: "1:1021391388902:web:b349b39a74994569bebb27",
+  measurementId: "G-WQYHW5DPBC"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// ============================================
+// GERENCIAMENTO DO CARRINHO
+// ============================================
+let carrinho = [];
+
+function carregarCarrinho() {
+  const saved = localStorage.getItem('attos2_carrinho');
+  carrinho = saved ? JSON.parse(saved) : [];
+  renderizar();
+}
+
+function salvarCarrinho() {
+  localStorage.setItem('attos2_carrinho', JSON.stringify(carrinho));
+  // Se logado, salvar no Firestore também
+  const user = auth.currentUser;
+  if (user) {
+    db.collection('clientes').doc(user.uid).update({
+      carrinho: carrinho
+    }).catch(() => {});
+  }
+}
+
+function adicionarAoCarrinho(produto, tamanho, corte, quantidade = 1) {
+  const idx = carrinho.findIndex(item =>
+    item.id === produto.id && item.tamanho === tamanho && item.corte === corte
+  );
+  if (idx >= 0) {
+    carrinho[idx].quantidade += quantidade;
+  } else {
+    carrinho.push({
+      id: produto.id,
+      nome: produto.nome,
+      preco: produto.preco,
+      versiculo: produto.versiculo || '',
+      imagem: produto.imagemUrl || '',
+      tamanho: tamanho || 'M',
+      corte: corte || 'Tradicional',
+      quantidade: quantidade
+    });
+  }
+  salvarCarrinho();
+  renderizar();
+  atualizarBadge();
+}
+
+function removerItem(index) {
+  carrinho.splice(index, 1);
+  salvarCarrinho();
+  renderizar();
+  atualizarBadge();
+}
+
+function alterarQtd(index, delta) {
+  if (carrinho[index].quantidade + delta <= 0) {
+    removerItem(index);
+    return;
+  }
+  carrinho[index].quantidade += delta;
+  salvarCarrinho();
+  renderizar();
+  atualizarBadge();
+}
+
+function limparCarrinho() {
+  carrinho = [];
+  salvarCarrinho();
+  renderizar();
+  atualizarBadge();
+}
+
+function getTotalItens() {
+  return carrinho.reduce((acc, item) => acc + item.quantidade, 0);
+}
+
+function getTotalPreco() {
+  return carrinho.reduce((acc, item) => acc + (item.preco * item.quantidade), 0);
+}
+
+// ============================================
+// RENDERIZAR
+// ============================================
+function renderizar() {
+  const container = document.getElementById('cartItems');
+  const empty = document.getElementById('cartEmpty');
+  const summary = document.getElementById('cartSummary');
+  const count = document.getElementById('cartCount');
+
+  const totalItens = getTotalItens();
+  count.textContent = `${totalItens} ${totalItens === 1 ? 'item' : 'itens'}`;
+
+  if (carrinho.length === 0) {
+    empty.style.display = 'block';
+    container.innerHTML = '';
+    summary.style.display = 'none';
+    return;
+  }
+
+  empty.style.display = 'none';
+  summary.style.display = 'block';
+
+  container.innerHTML = carrinho.map((item, idx) => `
+    <div class="cart-item">
+      <div class="cart-item-img">${item.imagem ? `<img src="${item.imagem}" style="width:100%;height:100%;object-fit:cover;border-radius:8px">` : '👕'}</div>
+      <div class="cart-item-info">
+        <h3>${item.nome}</h3>
+        ${item.versiculo ? `<div class="cart-item-verse">${item.versiculo}</div>` : ''}
+        <div class="cart-item-detail">${item.tamanho} • ${item.corte}</div>
+      </div>
+      <div class="cart-item-right">
+        <div class="cart-item-price">R$ ${(item.preco * item.quantidade).toFixed(2).replace('.',',')}</div>
+        <div class="cart-item-qty">
+          <button onclick="alterarQtd(${idx}, -1)">−</button>
+          <span>${item.quantidade}</span>
+          <button onclick="alterarQtd(${idx}, 1)">+</button>
+        </div>
+        <button class="cart-item-remove" onclick="removerItem(${idx})">Remover</button>
+      </div>
+    </div>
+  `).join('');
+
+  const subtotal = getTotalPreco();
+  document.getElementById('subtotal').textContent = `R$ ${subtotal.toFixed(2).replace('.',',')}`;
+  document.getElementById('total').textContent = `R$ ${subtotal.toFixed(2).replace('.',',')}`;
+}
+
+function atualizarBadge() {
+  // Atualizar badge no navbar da home (se existir)
+  const total = getTotalItens();
+  // Disparar evento para outras páginas
+  window.dispatchEvent(new CustomEvent('carrinhoAtualizado', { detail: { total } }));
+}
+
+// ============================================
+// FINALIZAR COMPRA
+// ============================================
+function finalizarCompra() {
+  const user = auth.currentUser;
+  if (!user) {
+    // Redirecionar para login com callback
+    sessionStorage.setItem('redirectPosLogin', '../pages/carrinho.html');
+    window.location.href = 'login.html';
+    return;
+  }
+  if (carrinho.length === 0) return;
+  // Redirecionar para checkout
+  window.location.href = 'checkout.html';
+}
+
+// ============================================
+// AUTH STATE
+// ============================================
+auth.onAuthStateChanged(user => {
+  const account = document.getElementById('cartNavAccount');
+  if (user) {
+    account.textContent = user.displayName || user.email;
+    // Tentar carregar carrinho do Firestore
+    db.collection('clientes').doc(user.uid).get().then(doc => {
+      if (doc.exists && doc.data().carrinho && doc.data().carrinho.length > 0) {
+        // Merge: localStorage tem prioridade
+        const local = JSON.parse(localStorage.getItem('attos2_carrinho') || '[]');
+        if (local.length === 0) {
+          carrinho = doc.data().carrinho;
+          salvarCarrinho();
+          renderizar();
+        }
+      }
+    }).catch(() => {});
+  } else {
+    account.textContent = '👤';
+  }
+});
+
+// ============================================
+// INICIAR
+// ============================================
+carregarCarrinho();
+</script>
+
+<!-- FOOTER -->
+<footer style="position:relative;z-index:1;background:#050505;border-top:1px solid rgba(212,175,55,0.08);padding:32px 20px;margin-top:60px">
+  <div style="display:flex;justify-content:space-between;align-items:center;max-width:1200px;margin:0 auto;flex-wrap:wrap;gap:12px">
+    <div style="font-family:Arial,sans-serif;font-size:0.6rem;letter-spacing:2px;color:rgba(255,255,255,0.25);text-transform:uppercase">© 2026 ATTOS2. Todos os direitos reservados.</div>
+    <div style="display:flex;align-items:center;gap:16px">
+      <span style="font-family:Arial,sans-serif;font-size:0.6rem;letter-spacing:1px;color:rgba(255,255,255,0.2)">Desenvolvido por <strong style="color:rgba(255,255,255,0.4)">Cleverson Hoffmann</strong></span>
+      <a href="admin/index.html" style="padding:6px 14px;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.2);border-radius:6px;color:#D4AF37;font-family:Arial,sans-serif;font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;text-decoration:none;transition:all 0.3s;display:flex;align-items:center;gap:4px" onmouseover="this.style.background='rgba(212,175,55,0.2)'" onmouseout="this.style.background='rgba(212,175,55,0.1)'"><i class="ti ti-shield-lock"></i> Admin</a>
+    </div>
+  </div>
+</footer>
+
+</body>

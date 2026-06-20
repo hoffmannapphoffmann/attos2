@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATTOS2 — Entrar / Cadastrar</title>
+<meta name="description" content="Entre ou cadastre-se na ATTOS2 para finalizar suas compras.">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+/* ============================================
+   PÁGINA DE LOGIN - ATTOS2
+   ============================================ */
+:root {
+  --gold: #D4AF37;
+  --gold2: #FFD700;
+  --fire1: #FF4500;
+  --fire2: #FF8C00;
+  --bg: #050505;
+  --card-bg: rgba(255,255,255,0.03);
+  --border: rgba(212,175,55,0.15);
+  --text: rgba(255,255,255,0.85);
+  --text-muted: rgba(255,255,255,0.4);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: Arial, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Fundo com partículas sutis */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(212,175,55,0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 50%, rgba(255,69,0,0.02) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 0%, rgba(46,10,74,0.1) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Voltar para loja */
+.back-link {
+  position: fixed;
+  top: 24px;
+  left: 24px;
+  z-index: 10;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.3s;
+}
+.back-link:hover { color: var(--gold); }
+.back-arrow { font-size: 1.2rem; }
+
+/* Card principal - Glassmorphism */
+.auth-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;
+  background: var(--card-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 48px 36px 36px;
+  box-shadow: 0 0 60px rgba(212,175,55,0.05), 0 0 120px rgba(46,10,74,0.1);
+}
+
+/* Logo */
+.auth-logo {
+  text-align: center;
+  margin-bottom: 32px;
+}
+.auth-logo img {
+  height: 48px;
+  opacity: 0.9;
+}
+.auth-logo h1 {
+  font-size: 1.6rem;
+  letter-spacing: 8px;
+  background: linear-gradient(135deg, #D4AF37, #FFD700, #fff, #D4AF37);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-top: 8px;
+  font-weight: 900;
+}
+
+/* Tabs */
+.auth-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 32px;
+  border-bottom: 1px solid var(--border);
+}
+.auth-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: Arial, sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  padding: 12px 0;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+}
+.auth-tab::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--gold);
+  transform: scaleX(0);
+  transition: transform 0.3s;
+}
+.auth-tab.active {
+  color: var(--gold);
+}
+.auth-tab.active::after {
+  transform: scaleX(1);
+}
+.auth-tab:hover {
+  color: rgba(255,255,255,0.6);
+}
+
+/* Forms */
+.auth-form {
+  display: none;
+  flex-direction: column;
+  gap: 16px;
+}
+.auth-form.active {
+  display: flex;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.form-group label {
+  font-size: 0.65rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.form-group input {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.form-group input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 20px rgba(212,175,55,0.1);
+}
+.form-group input::placeholder {
+  color: rgba(255,255,255,0.2);
+}
+
+/* Botão principal */
+.btn-auth {
+  background: linear-gradient(135deg, var(--gold), var(--gold2));
+  color: #050505;
+  border: none;
+  border-radius: 8px;
+  padding: 16px;
+  font-family: Arial, sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-top: 8px;
+}
+.btn-auth:hover {
+  box-shadow: 0 0 30px rgba(212,175,55,0.3);
+  transform: translateY(-1px);
+}
+.btn-auth:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Divisor */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 8px 0;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Botão Google */
+.btn-google {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  color: var(--text);
+  font-family: Arial, sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.btn-google:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: var(--gold);
+}
+.btn-google svg { width: 18px; height: 18px; }
+
+/* Mensagens */
+.auth-msg {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  display: none;
+}
+.auth-msg.error {
+  display: block;
+  background: rgba(255,69,0,0.1);
+  border: 1px solid rgba(255,69,0,0.3);
+  color: #FF6B35;
+}
+.auth-msg.success {
+  display: block;
+  background: rgba(212,175,55,0.1);
+  border: 1px solid rgba(212,175,55,0.3);
+  color: var(--gold);
+}
+
+/* Loading spinner */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(5,5,5,0.2);
+  border-top-color: #050505;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Esqueci senha */
+.forgot-link {
+  text-align: right;
+  margin-top: -8px;
+}
+.forgot-link a {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+.forgot-link a:hover {
+  color: var(--gold);
+}
+
+/* Termos */
+.auth-terms {
+  text-align: center;
+  margin-top: 24px;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.auth-terms a {
+  color: var(--gold);
+  text-decoration: none;
+}
+
+/* Footer da página */
+.auth-footer {
+  position: relative;
+  z-index: 1;
+  margin-top: 32px;
+  text-align: center;
+  font-size: 0.6rem;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+/* Responsivo */
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 32px 20px 24px;
+    border-radius: 12px;
+  }
+  .back-link {
+    top: 16px;
+    left: 16px;
+  }
+  .auth-logo h1 {
+    font-size: 1.3rem;
+    letter-spacing: 6px;
+  }
+}
+</style>
+</head>
+<body>
+
+<a href="../index.html" class="back-link">
+  <span class="back-arrow">←</span> Voltar à Loja
+</a>
+
+<div class="auth-card">
+  <div class="auth-logo">
+    <img src="../logo2.png" alt="ATTOS2">
+    <h1>ATTOS²</h1>
+  </div>
+
+  <!-- Tabs -->
+  <div class="auth-tabs">
+    <button class="auth-tab active" data-tab="login" onclick="switchTab('login')">Entrar</button>
+    <button class="auth-tab" data-tab="register" onclick="switchTab('register')">Cadastrar</button>
+  </div>
+
+  <!-- Mensagem -->
+  <div class="auth-msg" id="authMsg"></div>
+
+  <!-- FORM LOGIN -->
+  <form class="auth-form active" id="loginForm" onsubmit="handleLogin(event)">
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="seu@email.com" required>
+    </div>
+    <div class="form-group">
+      <label>Senha</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" required minlength="6">
+    </div>
+    <div class="forgot-link">
+      <a href="#" onclick="handleForgotPassword(event)">Esqueci minha senha</a>
+    </div>
+    <button type="submit" class="btn-auth" id="loginBtn">Entrar</button>
+
+    <div class="auth-divider">ou</div>
+
+    <button type="button" class="btn-google" onclick="handleGoogleLogin()">
+      <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Entrar com Google
+    </button>
+  </form>
+
+  <!-- FORM CADASTRO -->
+  <form class="auth-form" id="registerForm" onsubmit="handleRegister(event)">
+    <div class="form-group">
+      <label>Nome completo</label>
+      <input type="text" id="regName" placeholder="Seu nome" required>
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="regEmail" placeholder="seu@email.com" required>
+    </div>
+    <div class="form-group">
+      <label>Telefone</label>
+      <input type="tel" id="regPhone" placeholder="(11) 99999-9999">
+    </div>
+    <div class="form-group">
+      <label>Senha</label>
+      <input type="password" id="regPassword" placeholder="Mínimo 6 caracteres" required minlength="6">
+    </div>
+    <div class="form-group">
+      <label>Confirmar senha</label>
+      <input type="password" id="regConfirm" placeholder="Repita a senha" required minlength="6">
+    </div>
+    <button type="submit" class="btn-auth" id="registerBtn">Criar Conta</button>
+
+    <div class="auth-divider">ou</div>
+
+    <button type="button" class="btn-google" onclick="handleGoogleLogin()">
+      <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Cadastrar com Google
+    </button>
+  </form>
+
+  <div class="auth-terms">
+    Ao continuar, você concorda com nossos <a href="#">Termos de Uso</a> e <a href="#">Política de Privacidade</a>.
+  </div>
+</div>
+
+<div class="auth-footer">ATTOS² — Vestindo a Chama do Espírito • Atos 2:4</div>
+
+<script>
+// ============================================
+// FIREBASE CONFIG
+// ============================================
+const firebaseConfig = {
+  apiKey: "AIzaSyBVXuBi31G9pfviNGUY6uZ_1cFudKthmU0",
+  authDomain: "attos2-c2644.firebaseapp.com",
+  projectId: "attos2-c2644",
+  storageBucket: "attos2-c2644.firebasestorage.app",
+  messagingSenderId: "1021391388902",
+  appId: "1:1021391388902:web:b349b39a74994569bebb27",
+  measurementId: "G-WQYHW5DPBC"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// ============================================
+// SWITCH TABS
+// ============================================
+function switchTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+  document.querySelector(`.auth-tab[data-tab="${tab}"]`).classList.add('active');
+  document.getElementById(tab + 'Form').classList.add('active');
+  document.getElementById('authMsg').className = 'auth-msg';
+  document.getElementById('authMsg').textContent = '';
+}
+
+// ============================================
+// SHOW MESSAGE
+// ============================================
+function showMsg(text, type = 'error') {
+  const el = document.getElementById('authMsg');
+  el.textContent = text;
+  el.className = 'auth-msg ' + type;
+}
+
+// ============================================
+// LOGIN
+// ============================================
+async function handleLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Entrando...';
+
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+    showMsg('Login realizado! Redirecionando...', 'success');
+    setTimeout(() => {
+      window.location.href = '../index.html';
+    }, 1000);
+  } catch (err) {
+    let msg = 'Erro ao entrar. Verifique seus dados.';
+    if (err.code === 'auth/user-not-found') msg = 'Usuário não encontrado.';
+    else if (err.code === 'auth/wrong-password') msg = 'Senha incorreta.';
+    else if (err.code === 'auth/invalid-email') msg = 'Email inválido.';
+    else if (err.code === 'auth/too-many-requests') msg = 'Muitas tentativas. Tente novamente mais tarde.';
+    showMsg(msg);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+  }
+}
+
+// ============================================
+// REGISTER
+// ============================================
+async function handleRegister(e) {
+  e.preventDefault();
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const phone = document.getElementById('regPhone').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const confirm = document.getElementById('regConfirm').value;
+  const btn = document.getElementById('registerBtn');
+
+  if (password !== confirm) {
+    showMsg('As senhas não conferem.');
+    return;
+  }
+  if (password.length < 6) {
+    showMsg('A senha deve ter no mínimo 6 caracteres.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Criando conta...';
+
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(email, password);
+    // Atualizar nome do perfil
+    await cred.user.updateProfile({ displayName: name });
+
+    // Criar documento do cliente no Firestore
+    await db.collection('clientes').doc(cred.user.uid).set({
+      nome: name,
+      email: email,
+      telefone: phone || '',
+      enderecos: [],
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      ultimoPedido: null
+    });
+
+    showMsg('Conta criada com sucesso! Redirecionando...', 'success');
+    setTimeout(() => {
+      window.location.href = '../index.html';
+    }, 1000);
+  } catch (err) {
+    let msg = 'Erro ao criar conta.';
+    if (err.code === 'auth/email-already-in-use') msg = 'Este email já está cadastrado.';
+    else if (err.code === 'auth/weak-password') msg = 'Senha muito fraca. Use 6+ caracteres.';
+    else if (err.code === 'auth/invalid-email') msg = 'Email inválido.';
+    showMsg(msg);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Criar Conta';
+  }
+}
+
+// ============================================
+// GOOGLE LOGIN
+// ============================================
+async function handleGoogleLogin() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  try {
+    const result = await auth.signInWithPopup(provider);
+    const user = result.user;
+
+    // Verificar se já existe no Firestore, se não, criar
+    const doc = await db.collection('clientes').doc(user.uid).get();
+    if (!doc.exists) {
+      await db.collection('clientes').doc(user.uid).set({
+        nome: user.displayName || '',
+        email: user.email,
+        telefone: user.phoneNumber || '',
+        enderecos: [],
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        ultimoPedido: null
+      });
+    }
+
+    showMsg('Login com Google realizado! Redirecionando...', 'success');
+    setTimeout(() => {
+      window.location.href = '../index.html';
+    }, 1000);
+  } catch (err) {
+    showMsg('Erro ao entrar com Google. Tente novamente.');
+  }
+}
+
+// ============================================
+// FORGOT PASSWORD
+// ============================================
+async function handleForgotPassword(e) {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim();
+  if (!email) {
+    showMsg('Digite seu email no campo acima primeiro.');
+    return;
+  }
+  try {
+    await auth.sendPasswordResetEmail(email);
+    showMsg('Email de recuperação enviado! Verifique sua caixa de entrada.', 'success');
+  } catch (err) {
+    showMsg('Erro ao enviar email. Verifique se o email está correto.');
+  }
+}
+
+// ============================================
+// REDIRECT SE JÁ ESTIVER LOGADO
+// ============================================
+auth.onAuthStateChanged(user => {
+  if (user) {
+    // Já está logado, redirecionar para home
+    window.location.href = '../index.html';
+  }
+});
+</script>
+
+<!-- FOOTER -->
+<footer style="position:relative;z-index:1;background:#050505;border-top:1px solid rgba(212,175,55,0.08);padding:32px 20px;margin-top:60px">
+  <div style="display:flex;justify-content:space-between;align-items:center;max-width:1200px;margin:0 auto;flex-wrap:wrap;gap:12px">
+    <div style="font-family:Arial,sans-serif;font-size:0.6rem;letter-spacing:2px;color:rgba(255,255,255,0.25);text-transform:uppercase">© 2026 ATTOS2. Todos os direitos reservados.</div>
+    <div style="display:flex;align-items:center;gap:16px">
+      <span style="font-family:Arial,sans-serif;font-size:0.6rem;letter-spacing:1px;color:rgba(255,255,255,0.2)">Desenvolvido por <strong style="color:rgba(255,255,255,0.4)">Cleverson Hoffmann</strong></span>
+      <a href="admin/index.html" style="padding:6px 14px;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.2);border-radius:6px;color:#D4AF37;font-family:Arial,sans-serif;font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;text-decoration:none;transition:all 0.3s;display:flex;align-items:center;gap:4px" onmouseover="this.style.background='rgba(212,175,55,0.2)'" onmouseout="this.style.background='rgba(212,175,55,0.1)'"><i class="ti ti-shield-lock"></i> Admin</a>
+    </div>
+  </div>
+</footer>
+
+</body>

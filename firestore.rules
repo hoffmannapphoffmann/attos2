@@ -1,0 +1,49 @@
+rules_version='2'
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Produtos: leitura pública, escrita apenas para admins
+    match /produtos/{produtoId} {
+      allow read: if true;
+      allow write: if request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Clientes: leitura e escrita apenas pelo próprio usuário ou admin
+    match /clientes/{clienteId} {
+      allow read: if request.auth != null && (request.auth.uid == clienteId || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+      allow write: if request.auth != null && (request.auth.uid == clienteId || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // Pedidos: leitura pelo próprio cliente ou admin, escrita apenas admin
+    match /pedidos/{pedidoId} {
+      allow read: if request.auth != null && (request.auth.uid == resource.data.clienteId || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && (request.auth.uid == resource.data.clienteId || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+      allow delete: if false;
+    }
+
+    // Config: leitura pública, escrita apenas admin
+    match /config/{configId} {
+      allow read: if true;
+      allow write: if request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Admins: apenas leitura para usuários logados, escrita apenas admin
+    match /admins/{adminId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Auditoria: escrita para usuários logados, leitura apenas admin
+    match /auditoria/{auditoriaId} {
+      allow read: if request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      allow write: if request.auth != null;
+    }
+
+    // Negar tudo que não foi explicitamente permitido
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

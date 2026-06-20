@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATTOS2 — Meus Pedidos</title>
+<meta name="description" content="Histórico de pedidos ATTOS2.">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<link rel="icon" type="image/png" href="../logo2.png">
+<link rel="shortcut icon" href="../logo2.png">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+:root {
+  --gold: #D4AF37;
+  --gold2: #FFD700;
+  --bg: #050505;
+  --card-bg: rgba(255,255,255,0.03);
+  --border: rgba(212,175,55,0.15);
+  --text: rgba(255,255,255,0.85);
+  --text-muted: rgba(255,255,255,0.4);
+  --success: #4CAF50;
+  --warning: #FF9800;
+  --info: #2196F3;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: Arial, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(212,175,55,0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 50%, rgba(255,69,0,0.02) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ped-nav {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  border-bottom: 1px solid var(--border);
+}
+.ped-nav a {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  transition: color 0.3s;
+}
+.ped-nav a:hover { color: var(--gold); }
+.ped-nav .logo-sm { height: 32px; opacity: 0.8; }
+
+.ped-content {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 40px 20px 80px;
+}
+
+.ped-header {
+  margin-bottom: 40px;
+}
+.ped-header h1 {
+  font-size: 1.8rem;
+  letter-spacing: 4px;
+  font-weight: 400;
+  margin-bottom: 8px;
+}
+.ped-header h1 em { color: var(--gold); font-style: italic; }
+.ped-header p {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.ped-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  transition: all 0.3s;
+}
+.ped-card:hover {
+  border-color: rgba(212,175,55,0.3);
+}
+.ped-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ped-card-id {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+.ped-card-data {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.ped-status {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.6rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.ped-status.aguardando_pagamento {
+  background: rgba(255,152,0,0.15);
+  color: var(--warning);
+  border: 1px solid rgba(255,152,0,0.3);
+}
+.ped-status.pago {
+  background: rgba(33,150,243,0.15);
+  color: var(--info);
+  border: 1px solid rgba(33,150,243,0.3);
+}
+.ped-status.enviado {
+  background: rgba(76,175,80,0.15);
+  color: var(--success);
+  border: 1px solid rgba(76,175,80,0.3);
+}
+.ped-status.entregue {
+  background: rgba(76,175,80,0.15);
+  color: var(--success);
+  border: 1px solid rgba(76,175,80,0.3);
+}
+.ped-status.cancelado {
+  background: rgba(244,67,54,0.15);
+  color: #f44336;
+  border: 1px solid rgba(244,67,54,0.3);
+}
+
+.ped-card-itens {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.ped-item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.ped-item-img {
+  width: 40px; height: 40px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #2E0A4A, #4A0E17);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.ped-item-img img { width: 100%; height: 100%; object-fit: cover; }
+.ped-item-info {
+  flex: 1;
+  min-width: 0;
+}
+.ped-item-info h4 {
+  font-size: 0.8rem;
+  font-weight: 400;
+  letter-spacing: 1px;
+}
+.ped-item-info span {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+.ped-item-qtd {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.ped-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ped-card-total {
+  font-size: 1rem;
+  color: var(--gold);
+  font-weight: 700;
+}
+.ped-card-rastreio {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+.ped-card-rastreio strong {
+  color: var(--text);
+}
+
+/* Botões de ação nos pedidos */
+.ped-card-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.btn-pix {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #1a8c4a, #28a745);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.65rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: Arial, sans-serif;
+}
+.btn-pix:hover {
+  box-shadow: 0 0 20px rgba(40,167,69,0.3);
+  transform: translateY(-1px);
+}
+.btn-pix.copiado {
+  background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+}
+.btn-cancelar {
+  padding: 8px 16px;
+  background: rgba(244,67,54,0.1);
+  border: 1px solid rgba(244,67,54,0.3);
+  border-radius: 8px;
+  color: #f44336;
+  font-size: 0.65rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: Arial, sans-serif;
+}
+.btn-cancelar:hover {
+  background: rgba(244,67,54,0.2);
+  border-color: #f44336;
+}
+
+.ped-empty {
+  text-align: center;
+  padding: 80px 20px;
+}
+.ped-empty-icon { font-size: 3rem; opacity: 0.3; margin-bottom: 16px; }
+.ped-empty h2 {
+  font-size: 1.2rem;
+  letter-spacing: 2px;
+  font-weight: 400;
+  margin-bottom: 8px;
+}
+.ped-empty p { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 24px; }
+.btn-loja {
+  display: inline-block;
+  padding: 14px 32px;
+  background: linear-gradient(135deg, var(--gold), var(--gold2));
+  border: none;
+  border-radius: 10px;
+  color: #050505;
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.3s;
+}
+.btn-loja:hover { box-shadow: 0 0 30px rgba(212,175,55,0.3); }
+
+.ped-loading {
+  text-align: center;
+  padding: 80px 20px;
+}
+.ped-loading .spinner {
+  display: inline-block;
+  width: 32px; height: 32px;
+  border: 2px solid rgba(212,175,55,0.2);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.ped-loading p { margin-top: 16px; color: var(--text-muted); font-size: 0.8rem; letter-spacing: 2px; }
+
+.ped-footer {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 24px;
+  font-size: 0.6rem;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 600px) {
+  .ped-nav { padding: 12px 16px; }
+  .ped-content { padding: 24px 16px; }
+  .ped-header h1 { font-size: 1.3rem; }
+  .ped-card-header { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<nav class="ped-nav">
+  <a href="../index.html">← Voltar</a>
+  <a href="../index.html"><img src="../logo2.png" class="logo-sm" alt="ATTOS2"></a>
+  <a href="carrinho.html">Carrinho</a>
+</nav>
+
+<div class="ped-content">
+  <div class="ped-header">
+    <h1>Meus <em>Pedidos</em></h1>
+    <p>Acompanhe o status das suas compras</p>
+  </div>
+
+  <div class="ped-loading" id="pedLoading">
+    <div class="spinner"></div>
+    <p>Carregando pedidos...</p>
+  </div>
+
+  <div id="pedList"></div>
+
+  <div class="ped-empty" id="pedEmpty" style="display:none">
+    <div class="ped-empty-icon"><i class="ti ti-package"></i></div>
+    <h2>Nenhum pedido ainda</h2>
+    <p>Você ainda não fez nenhuma compra conosco.</p>
+    <a href="produtos.html" class="btn-loja">Ver Produtos</a>
+  </div>
+</div>
+
+<div class="ped-footer">ATTOS² — Vestindo a Chama do Espírito • Atos 2:4</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBVXuBi31G9pfviNGUY6uZ_1cFudKthmU0",
+  authDomain: "attos2-c2644.firebaseapp.com",
+  projectId: "attos2-c2644",
+  storageBucket: "attos2-c2644.firebasestorage.app",
+  messagingSenderId: "1021391388902",
+  appId: "1:1021391388902:web:b349b39a74994569bebb27",
+  measurementId: "G-WQYHW5DPBC"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+const STATUS_LABELS = {
+  aguardando_pagamento: 'Aguardando Pagamento',
+  pago: 'Pago',
+  enviado: 'Enviado',
+  entregue: 'Entregue',
+  cancelado: 'Cancelado'
+};
+
+auth.onAuthStateChanged(user => {
+  if (!user) {
+    sessionStorage.setItem('redirectPosLogin', 'pedidos.html');
+    window.location.href = 'login.html';
+    return;
+  }
+  carregarPedidos(user);
+});
+
+// ============================================
+// COPIAR CHAVE PIX
+// ============================================
+async function copiarPix(pedidoId) {
+  try {
+    const doc = await db.collection('pedidos').doc(pedidoId).get();
+    if (!doc.exists) return;
+    const pedido = doc.data();
+    const pix = pedido.pagamentoData?.pixCopiaECola;
+    if (!pix) {
+      alert('Chave PIX não disponível no momento.');
+      return;
+    }
+    await navigator.clipboard.writeText(pix);
+    // Feedback visual
+    const btn = document.querySelector(`button[onclick="copiarPix('${pedidoId}')"]`);
+    if (btn) {
+      btn.classList.add('copiado');
+      btn.innerHTML = '<i class="ti ti-check"></i> Copiado!';
+      setTimeout(() => {
+        btn.classList.remove('copiado');
+        btn.innerHTML = '<i class="ti ti-copy"></i> Copiar PIX';
+      }, 3000);
+    }
+  } catch (err) {
+    console.error('Erro ao copiar PIX:', err);
+    alert('Erro ao copiar PIX. Tente novamente.');
+  }
+}
+
+// ============================================
+// CANCELAR PEDIDO
+// ============================================
+async function cancelarPedido(pedidoId) {
+  if (!confirm('Tem certeza que deseja cancelar este pedido?')) return;
+  if (!confirm('Esta ação não pode ser desfeita. Confirmar cancelamento?')) return;
+
+  try {
+    await db.collection('pedidos').doc(pedidoId).update({
+      status: 'cancelado',
+      canceladoEm: firebase.firestore.FieldValue.serverTimestamp(),
+      canceladoPeloCliente: true
+    });
+    alert('Pedido cancelado com sucesso!');
+    // Recarregar a lista
+    const user = auth.currentUser;
+    if (user) carregarPedidos(user);
+  } catch (err) {
+    console.error('Erro ao cancelar pedido:', err);
+    alert('Erro ao cancelar pedido. Tente novamente.');
+  }
+}
+
+async function carregarPedidos(user) {
+  try {
+    // Primeiro tenta com orderBy (se o índice já existir)
+    let snapshot;
+    try {
+      snapshot = await db.collection('pedidos')
+        .where('clienteId', '==', user.uid)
+        .orderBy('createdAt', 'desc')
+        .get();
+    } catch (orderErr) {
+      console.warn('Índice ainda não pronto, tentando sem orderBy:', orderErr.message);
+      // Fallback: busca sem orderBy e ordena no cliente
+      snapshot = await db.collection('pedidos')
+        .where('clienteId', '==', user.uid)
+        .get();
+    }
+
+    document.getElementById('pedLoading').style.display = 'none';
+
+    if (snapshot.empty) {
+      document.getElementById('pedEmpty').style.display = 'block';
+      return;
+    }
+
+    // Converter para array e ordenar
+    let pedidos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    
+    // Ordenar por createdAt (decrescente)
+    pedidos.sort((a, b) => {
+      const ta = a.createdAt ? (a.createdAt.toMillis ? a.createdAt.toMillis() : new Date(a.createdAt).getTime()) : 0;
+      const tb = b.createdAt ? (b.createdAt.toMillis ? b.createdAt.toMillis() : new Date(b.createdAt).getTime()) : 0;
+      return tb - ta;
+    });
+
+    const container = document.getElementById('pedList');
+    container.innerHTML = pedidos.map(p => {
+      const data = p.createdAt ? 
+        (p.createdAt.toDate ? p.createdAt.toDate().toLocaleDateString('pt-BR') : new Date(p.createdAt).toLocaleDateString('pt-BR')) 
+        : '';
+      const statusClass = p.status || 'aguardando_pagamento';
+      const statusLabel = STATUS_LABELS[statusClass] || statusClass;
+
+      return `
+        <div class="ped-card">
+          <div class="ped-card-header">
+            <div>
+              <div class="ped-card-id">Pedido #${p.id.slice(0,8)}</div>
+              <div class="ped-card-data">${data}</div>
+            </div>
+            <div class="ped-status ${statusClass}">${statusLabel}</div>
+          </div>
+          <div class="ped-card-itens">
+            ${(p.itens || []).map(item => `
+              <div class="ped-item">
+                <div class="ped-item-img">
+                  ${item.imagem ? `<img src="${item.imagem}" alt="${item.nome}">` : '👕'}
+                </div>
+                <div class="ped-item-info">
+                  <h4>${item.nome}</h4>
+                  <span>${item.tamanho} • ${item.corte || ''}</span>
+                </div>
+                <div class="ped-item-qtd">x${item.quantidade}</div>
+              </div>
+            `).join('')}
+          </div>
+            <div class="ped-card-footer">
+            <div class="ped-card-total">R$ ${(p.total || 0).toFixed(2).replace('.',',')}</div>
+            <div class="ped-card-actions">
+              ${statusClass === 'aguardando_pagamento' && p.pagamentoData?.pixCopiaECola ? `
+                <button class="btn-pix" onclick="copiarPix('${p.id}')" title="Copiar chave PIX">
+                  <i class="ti ti-copy"></i> Copiar PIX
+                </button>
+              ` : ''}
+              ${statusClass === 'aguardando_pagamento' ? `
+                <button class="btn-cancelar" onclick="cancelarPedido('${p.id}')" title="Cancelar pedido">
+                  <i class="ti ti-x"></i> Cancelar
+                </button>
+              ` : ''}
+              ${p.codigoRastreio ? `<div class="ped-card-rastreio">📦 Código: <strong>${p.codigoRastreio}</strong></div>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('Erro ao carregar pedidos:', err);
+    document.getElementById('pedLoading').innerHTML = '<p style="color:#f44336">Erro ao carregar pedidos.</p>';
+  }
+}
+</script>
+
+<!-- FOOTER -->
+<footer style="position:relative;z-index:1;background:#050505;border-top:1px solid rgba(212,175,55,0.08);padding:32px 20px;margin-top:60px">
+  <div style="display:flex;justify-content:space-between;align-items:center;max-width:1200px;margin:0 auto;flex-wrap:wrap;gap:12px">
+    <div style="font-family:Arial,sans-serif;font-size:0.6rem;letter-spacing:2px;color:rgba(255,255,255,0.25);text-transform:uppercase">© 2026 ATTOS2. Todos os direitos reservados.</div>
+    <div style="display:flex;align-items:center;gap:16px">
+      <span style="font-family:Arial,sans-serif;font-size:0.6rem;letter-spacing:1px;color:rgba(255,255,255,0.2)">Desenvolvido por <strong style="color:rgba(255,255,255,0.4)">Cleverson Hoffmann</strong></span>
+      <a href="admin/index.html" style="padding:6px 14px;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.2);border-radius:6px;color:#D4AF37;font-family:Arial,sans-serif;font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;text-decoration:none;transition:all 0.3s;display:flex;align-items:center;gap:4px" onmouseover="this.style.background='rgba(212,175,55,0.2)'" onmouseout="this.style.background='rgba(212,175,55,0.1)'"><i class="ti ti-shield-lock"></i> Admin</a>
+    </div>
+  </div>
+</footer>
+
+</body>

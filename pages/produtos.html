@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATTOS2 — Produtos</title>
+<meta name="description" content="Catálogo completo de roupas gospel ATTOS2. Camisetas com versículos bíblicos.">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<link rel="icon" type="image/png" href="../logo2.png">
+<link rel="shortcut icon" href="../logo2.png">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+:root {
+  --gold: #D4AF37;
+  --gold2: #FFD700;
+  --fire1: #FF4500;
+  --fire2: #FF8C00;
+  --bg: #050505;
+  --card-bg: rgba(255,255,255,0.03);
+  --border: rgba(212,175,55,0.15);
+  --text: rgba(255,255,255,0.85);
+  --text-muted: rgba(255,255,255,0.4);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: Arial, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(212,175,55,0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 50%, rgba(255,69,0,0.02) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* NAVBAR SIMPLES */
+.prod-nav {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  border-bottom: 1px solid var(--border);
+}
+.prod-nav a {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  transition: color 0.3s;
+}
+.prod-nav a:hover { color: var(--gold); }
+.prod-nav .logo-sm { height: 32px; opacity: 0.8; }
+.prod-nav-right { display: flex; align-items: center; gap: 16px; }
+.prod-nav-right .nav-icon-btn {
+  background: none; border: none; color: var(--text);
+  font-size: 1.2rem; cursor: pointer; padding: 4px;
+  transition: color 0.3s; position: relative;
+}
+.prod-nav-right .nav-icon-btn:hover { color: var(--gold); }
+.cart-badge-nav {
+  position: absolute; top: -4px; right: -6px;
+  background: var(--gold); color: #050505;
+  font-size: 0.55rem; font-weight: 700;
+  min-width: 16px; height: 16px;
+  border-radius: 8px; display: flex;
+  align-items: center; justify-content: center;
+  padding: 0 4px; line-height: 1;
+}
+
+/* LAYOUT */
+.prod-layout {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 32px 20px 80px;
+  gap: 32px;
+}
+
+/* SIDEBAR FILTROS */
+.prod-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+}
+.prod-sidebar h3 {
+  font-size: 0.7rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 16px;
+  font-weight: 400;
+}
+.filter-group {
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.filter-group:last-child { border-bottom: none; }
+.filter-group label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.filter-group label:hover { color: var(--text); }
+.filter-group input[type="checkbox"] {
+  margin-right: 8px;
+  accent-color: var(--gold);
+}
+.filter-group input[type="radio"] {
+  margin-right: 8px;
+  accent-color: var(--gold);
+}
+.filter-price {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.filter-price input {
+  width: 80px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: #fff;
+  font-size: 0.8rem;
+  outline: none;
+}
+.filter-price input:focus { border-color: var(--gold); }
+.filter-price span { color: var(--text-muted); font-size: 0.75rem; }
+.btn-filter {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, var(--gold), var(--gold2));
+  border: none;
+  border-radius: 8px;
+  color: #050505;
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-top: 8px;
+}
+.btn-filter:hover { box-shadow: 0 0 20px rgba(212,175,55,0.3); }
+.btn-filter-clear {
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-top: 8px;
+}
+.btn-filter-clear:hover { border-color: var(--gold); color: var(--gold); }
+
+/* MAIN */
+.prod-main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* HEADER */
+.prod-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.prod-header h1 {
+  font-size: 1.4rem;
+  letter-spacing: 3px;
+  font-weight: 400;
+}
+.prod-header h1 em { color: var(--gold); font-style: italic; }
+.prod-header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.prod-count {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+.prod-sort select {
+  background: #1a1a1a;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: #fff;
+  font-size: 0.75rem;
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23D4AF37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 32px;
+}
+.prod-sort select:focus { border-color: var(--gold); }
+.prod-sort select option {
+  background: #1a1a1a;
+  color: #fff;
+}
+
+/* GRID */
+.prod-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+/* CARD */
+.prod-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s;
+  cursor: pointer;
+  position: relative;
+}
+.prod-card:hover {
+  border-color: rgba(212,175,55,0.3);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(212,175,55,0.08);
+}
+.prod-card-img {
+  width: 100%;
+  height: 240px;
+  background: linear-gradient(135deg, #2E0A4A, #4A0E17);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  position: relative;
+  overflow: hidden;
+}
+.prod-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.prod-card-body {
+  padding: 16px;
+}
+.prod-card-name {
+  font-size: 0.9rem;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+  font-weight: 400;
+}
+.prod-card-verse {
+  font-size: 0.65rem;
+  color: var(--gold);
+  opacity: 0.7;
+  margin-bottom: 8px;
+  font-style: italic;
+}
+.prod-card-price {
+  font-size: 1.1rem;
+  color: var(--gold);
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.prod-card-cortes {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.prod-card-cortes span {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+.prod-card-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  padding: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.prod-card:hover .prod-card-overlay { opacity: 1; }
+.prod-card-overlay button {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(5,5,5,0.8);
+  color: var(--gold);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.prod-card-overlay button:hover {
+  background: var(--gold);
+  color: #050505;
+}
+
+/* LOADING */
+.prod-loading {
+  text-align: center;
+  padding: 80px 20px;
+}
+.prod-loading .spinner {
+  display: inline-block;
+  width: 32px; height: 32px;
+  border: 2px solid rgba(212,175,55,0.2);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.prod-loading p {
+  margin-top: 16px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  letter-spacing: 2px;
+}
+
+/* VAZIO */
+.prod-empty {
+  text-align: center;
+  padding: 80px 20px;
+}
+.prod-empty-icon { font-size: 3rem; opacity: 0.3; margin-bottom: 16px; }
+.prod-empty h3 {
+  font-size: 1.2rem;
+  letter-spacing: 2px;
+  font-weight: 400;
+  margin-bottom: 8px;
+}
+.prod-empty p { color: var(--text-muted); font-size: 0.85rem; }
+
+/* FOOTER */
+.prod-footer {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 24px;
+  font-size: 0.6rem;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  border-top: 1px solid var(--border);
+}
+
+/* === FILTER BAR MOBILE (hambúrguer de filtros) === */
+.filter-bar-mobile {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(5,5,5,0.98);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+}
+.filter-bar-mobile .filter-bar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.filter-bar-mobile .filter-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+.filter-bar-mobile .filter-bar-title {
+  font-size: 0.85rem;
+  letter-spacing: 2px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.filter-bar-mobile .filter-bar-title em {
+  color: var(--gold);
+  font-style: italic;
+}
+.filter-bar-mobile .filter-toggle-btn {
+  background: rgba(212,175,55,0.1);
+  border: 1px solid rgba(212,175,55,0.3);
+  border-radius: 8px;
+  color: var(--gold);
+  padding: 8px 14px;
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.3s;
+  white-space: nowrap;
+  font-family: Arial, sans-serif;
+}
+.filter-bar-mobile .filter-toggle-btn:hover {
+  background: rgba(212,175,55,0.2);
+}
+.filter-bar-mobile .filter-toggle-btn i {
+  font-size: 1rem;
+}
+.filter-bar-mobile .filter-sort-mobile select {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 28px 8px 10px;
+  color: #fff;
+  font-size: 0.7rem;
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23D4AF37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  font-family: Arial, sans-serif;
+}
+.filter-bar-mobile .filter-sort-mobile select:focus { border-color: var(--gold); }
+.filter-bar-mobile .filter-sort-mobile select option {
+  background: #1a1a1a;
+  color: #fff;
+}
+
+/* Painel de filtros que desliza */
+.filter-panel-mobile {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 9999;
+  background: rgba(5,5,5,0.98);
+  backdrop-filter: blur(20px);
+  overflow-y: auto;
+  padding: 80px 20px 40px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+.filter-panel-mobile.active {
+  opacity: 1;
+  visibility: visible;
+}
+.filter-panel-mobile .filter-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.filter-panel-mobile .filter-panel-header h3 {
+  font-size: 1rem;
+  letter-spacing: 3px;
+  font-weight: 400;
+  color: var(--gold);
+}
+.filter-panel-mobile .filter-panel-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+.filter-panel-mobile .filter-panel-close:hover { color: #fff; }
+.filter-panel-mobile .filter-group {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.filter-panel-mobile .filter-group:last-child { border-bottom: none; }
+.filter-panel-mobile .filter-group > label:first-child {
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  display: block;
+}
+.filter-panel-mobile .filter-group label {
+  font-size: 0.85rem;
+  padding: 6px 0;
+}
+.filter-panel-mobile .filter-price input {
+  width: 100px;
+}
+.filter-panel-mobile .btn-filter {
+  margin-top: 16px;
+}
+.filter-panel-mobile .btn-filter-clear {
+  margin-top: 8px;
+}
+
+/* RESPONSIVO */
+@media (max-width: 768px) {
+  .filter-bar-mobile { display: block; }
+  .prod-nav { padding: 12px 16px; }
+  .prod-layout { flex-direction: column; padding: 0 16px 40px; gap: 0; }
+  .prod-sidebar { display: none; }
+  .prod-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .prod-card-img { height: 180px; }
+  .prod-card-body { padding: 12px; }
+  .prod-card-name { font-size: 0.8rem; }
+  .prod-card-price { font-size: 0.95rem; }
+  .prod-header { display: none; }
+  .filter-group { margin-bottom: 16px; padding-bottom: 16px; }
+  .prod-main { padding-top: 16px; }
+}
+@media (max-width: 480px) {
+  .prod-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .prod-card-img { height: 150px; }
+}
+.footer-credits{display:flex;align-items:center;gap:16px}
+@media(max-width:768px){.footer-credits{flex-wrap:wrap;justify-content:center;gap:8px}}
+</style>
+<body>
+
+<nav class="prod-nav">
+  <a href="../index.html">← Voltar</a>
+  <a href="../index.html"><img src="../logo2.png" class="logo-sm" alt="ATTOS2"></a>
+  <div class="prod-nav-right">
+    <a href="carrinho.html" class="nav-icon-btn" aria-label="Carrinho">
+      <i class="ti ti-shopping-cart"></i>
+      <span class="cart-badge-nav" id="cartCountNav">0</span>
+    </a>
+  </div>
+</nav>
+
+<!-- FILTER BAR MOBILE -->
+<div class="filter-bar-mobile" id="filterBarMobile">
+  <div class="filter-bar-row">
+    <div class="filter-bar-left">
+      <span class="filter-bar-title" id="filterBarTitle">Catálogo <em>Completo</em></span>
+    </div>
+    <div class="filter-sort-mobile">
+      <select id="sortSelectMobile" onchange="sincronizarSort()">
+        <option value="recentes">Recentes</option>
+        <option value="menor">Menor preço</option>
+        <option value="maior">Maior preço</option>
+        <option value="nome">A-Z</option>
+      </select>
+    </div>
+    <button class="filter-toggle-btn" onclick="abrirPainelFiltros()">
+      <i class="ti ti-adjustments-horizontal"></i> Filtros
+    </button>
+  </div>
+</div>
+
+<!-- PAINEL DE FILTROS MOBILE (fullscreen) -->
+<div class="filter-panel-mobile" id="filterPanelMobile">
+  <div class="filter-panel-header">
+    <h3>Filtros</h3>
+    <button class="filter-panel-close" onclick="fecharPainelFiltros()"><i class="ti ti-x"></i></button>
+  </div>
+
+  <div class="filter-group">
+    <label>Categoria</label>
+    <label><input type="checkbox" class="filter-cat-mob" value="masculino"> Masculino</label>
+    <label><input type="checkbox" class="filter-cat-mob" value="feminino"> Feminino</label>
+    <label><input type="checkbox" class="filter-cat-mob" value="infantil"> Infantil</label>
+  </div>
+
+  <div class="filter-group">
+    <label>Corte</label>
+    <label><input type="checkbox" class="filter-corte-mob" value="Tradicional"> Tradicional</label>
+    <label><input type="checkbox" class="filter-corte-mob" value="Slim Fit"> Slim Fit</label>
+    <label><input type="checkbox" class="filter-corte-mob" value="Oversized"> Oversized</label>
+    <label><input type="checkbox" class="filter-corte-mob" value="Longline"> Longline</label>
+  </div>
+
+  <div class="filter-group">
+    <label>Tamanho</label>
+    <label><input type="checkbox" class="filter-tam-mob" value="P"> P</label>
+    <label><input type="checkbox" class="filter-tam-mob" value="M"> M</label>
+    <label><input type="checkbox" class="filter-tam-mob" value="G"> G</label>
+    <label><input type="checkbox" class="filter-tam-mob" value="GG"> GG</label>
+  </div>
+
+  <div class="filter-group">
+    <label>Preço</label>
+    <div class="filter-price">
+      <input type="number" id="priceMinMob" placeholder="R$ 0" min="0">
+      <span>até</span>
+      <input type="number" id="priceMaxMob" placeholder="R$ 200" min="0">
+    </div>
+  </div>
+
+  <button class="btn-filter" onclick="aplicarFiltrosMobile()">Aplicar Filtros</button>
+  <button class="btn-filter-clear" onclick="limparFiltrosMobile()">Limpar</button>
+</div>
+
+<div class="prod-layout">
+  <!-- SIDEBAR FILTROS -->
+  <aside class="prod-sidebar" id="prodSidebar">
+    <h3>Filtros</h3>
+
+    <div class="filter-group">
+      <label style="font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px">Categoria</label>
+      <label><input type="checkbox" class="filter-cat" value="masculino"> Masculino</label>
+      <label><input type="checkbox" class="filter-cat" value="feminino"> Feminino</label>
+      <label><input type="checkbox" class="filter-cat" value="infantil"> Infantil</label>
+    </div>
+
+    <div class="filter-group">
+      <label style="font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px">Corte</label>
+      <label><input type="checkbox" class="filter-corte" value="Tradicional"> Tradicional</label>
+      <label><input type="checkbox" class="filter-corte" value="Slim Fit"> Slim Fit</label>
+      <label><input type="checkbox" class="filter-corte" value="Oversized"> Oversized</label>
+      <label><input type="checkbox" class="filter-corte" value="Longline"> Longline</label>
+    </div>
+
+    <div class="filter-group">
+      <label style="font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px">Tamanho</label>
+      <label><input type="checkbox" class="filter-tam" value="P"> P</label>
+      <label><input type="checkbox" class="filter-tam" value="M"> M</label>
+      <label><input type="checkbox" class="filter-tam" value="G"> G</label>
+      <label><input type="checkbox" class="filter-tam" value="GG"> GG</label>
+    </div>
+
+    <div class="filter-group">
+      <label style="font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px">Preço</label>
+      <div class="filter-price">
+        <input type="number" id="priceMin" placeholder="R$ 0" min="0">
+        <span>até</span>
+        <input type="number" id="priceMax" placeholder="R$ 200" min="0">
+      </div>
+    </div>
+
+    <button class="btn-filter" onclick="aplicarFiltros()">Aplicar Filtros</button>
+    <button class="btn-filter-clear" onclick="limparFiltros()">Limpar</button>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="prod-main">
+    <div class="prod-header">
+      <h1>Catálogo <em>Completo</em></h1>
+      <div class="prod-header-right">
+        <span class="prod-count" id="prodCount">0 produtos</span>
+        <div class="prod-sort">
+          <select id="sortSelect" onchange="aplicarFiltros()">
+            <option value="recentes">Mais recentes</option>
+            <option value="menor">Menor preço</option>
+            <option value="maior">Maior preço</option>
+            <option value="nome">Nome A-Z</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOADING -->
+    <div class="prod-loading" id="prodLoading">
+      <div class="spinner"></div>
+      <p>Carregando produtos...</p>
+    </div>
+
+    <!-- GRID -->
+    <div class="prod-grid" id="prodGrid" style="display:none"></div>
+
+    <!-- VAZIO -->
+    <div class="prod-empty" id="prodEmpty" style="display:none">
+      <div class="prod-empty-icon">🔍</div>
+      <h3>Nenhum produto encontrado</h3>
+      <p>Tente ajustar os filtros ou buscar por outro termo.</p>
+    </div>
+  </main>
+</div>
+
+<div class="prod-footer">ATTOS² — Vestindo a Chama do Espírito • Atos 2:4</div>
+
+<script>
+// ============================================
+// FIREBASE
+// ============================================
+const firebaseConfig = {
+  apiKey: "AIzaSyBVXuBi31G9pfviNGUY6uZ_1cFudKthmU0",
+  authDomain: "attos2-c2644.firebaseapp.com",
+  projectId: "attos2-c2644",
+  storageBucket: "attos2-c2644.firebasestorage.app",
+  messagingSenderId: "1021391388902",
+  appId: "1:1021391388902:web:b349b39a74994569bebb27",
+  measurementId: "G-WQYHW5DPBC"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+// ============================================
+// ESTADO
+// ============================================
+let todosProdutos = [];
+let produtosFiltrados = [];
+
+// ============================================
+// CARREGAR PRODUTOS
+// ============================================
+async function carregarProdutos() {
+  const loading = document.getElementById('prodLoading');
+  const grid = document.getElementById('prodGrid');
+  const empty = document.getElementById('prodEmpty');
+
+  try {
+    const snapshot = await db.collection('produtos').get();
+    todosProdutos = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      todosProdutos.push({ id: doc.id, ...data });
+    });
+
+    // Verificar se veio busca ou categoria na URL
+    const params = new URLSearchParams(window.location.search);
+    const busca = params.get('busca');
+    const categoria = params.get('categoria');
+
+    loading.style.display = 'none';
+    grid.style.display = 'grid';
+
+    if (busca) {
+      // Preencher campo de busca visualmente
+      document.getElementById('prodSidebar').insertAdjacentHTML('afterbegin',
+        `<div style="margin-bottom:16px;padding:10px 14px;background:rgba(212,175,55,0.08);border-radius:8px;font-size:0.8rem;color:var(--gold)">
+          Buscando: "<strong>${busca}</strong>"
+          <button onclick="limparBusca()" style="float:right;background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.7rem">×</button>
+        </div>`
+      );
+      // Filtrar por busca
+      const termo = busca.toLowerCase();
+      todosProdutos = todosProdutos.filter(p =>
+        (p.nome || '').toLowerCase().includes(termo) ||
+        (p.versiculo || '').toLowerCase().includes(termo)
+      );
+    }
+
+    // Se veio categoria na URL, marcar o checkbox e atualizar título
+    if (categoria) {
+      const catCheckbox = document.querySelector(`.filter-cat[value="${categoria}"]`);
+      if (catCheckbox) catCheckbox.checked = true;
+      // Atualizar título
+      const titulo = document.querySelector('.prod-header h1');
+      if (titulo) {
+        const label = categoria.charAt(0).toUpperCase() + categoria.slice(1);
+        titulo.innerHTML = `Coleção <em>${label}</em>`;
+      }
+      // Atualizar título mobile
+      const filterBarTitle = document.getElementById('filterBarTitle');
+      if (filterBarTitle) {
+        const label = categoria.charAt(0).toUpperCase() + categoria.slice(1);
+        filterBarTitle.innerHTML = `Coleção <em>${label}</em>`;
+      }
+    }
+
+    aplicarFiltros();
+  } catch (err) {
+    console.warn('Erro ao carregar produtos:', err);
+    loading.innerHTML = '<p style="color:var(--fire1)">Erro ao carregar produtos.</p>';
+  }
+}
+
+function limparBusca() {
+  window.location.href = 'produtos.html';
+}
+
+// ============================================
+// FILTROS
+// ============================================
+function aplicarFiltros() {
+  const cats = Array.from(document.querySelectorAll('.filter-cat:checked')).map(c => c.value);
+  const cortes = Array.from(document.querySelectorAll('.filter-corte:checked')).map(c => c.value);
+  const tams = Array.from(document.querySelectorAll('.filter-tam:checked')).map(c => c.value);
+  const priceMin = parseFloat(document.getElementById('priceMin').value) || 0;
+  const priceMax = parseFloat(document.getElementById('priceMax').value) || Infinity;
+  const sort = document.getElementById('sortSelect').value;
+
+  produtosFiltrados = todosProdutos.filter(p => {
+    // Categoria
+    if (cats.length > 0 && !cats.includes((p.categoria || '').toLowerCase())) return false;
+
+    // Preço
+    const preco = p.preco || 0;
+    if (preco < priceMin || preco > priceMax) return false;
+
+    // Corte e tamanho: verificar se o produto tem pelo menos um corte/tamanho selecionado
+    const modelos = p.modelos || {};
+    const cortesDisponiveis = Object.keys(modelos);
+
+    if (cortes.length > 0) {
+      const temCorte = cortes.some(c => cortesDisponiveis.includes(c));
+      if (!temCorte) return false;
+    }
+
+    if (tams.length > 0) {
+      let temTam = false;
+      for (const corte of cortesDisponiveis) {
+        const estoques = modelos[corte] || {};
+        for (const tam of tams) {
+          if ((estoques[tam] || 0) > 0) { temTam = true; break; }
+        }
+        if (temTam) break;
+      }
+      if (!temTam) return false;
+    }
+
+    return true;
+  });
+
+  // Ordenação
+  switch (sort) {
+    case 'menor':
+      produtosFiltrados.sort((a, b) => (a.preco || 0) - (b.preco || 0));
+      break;
+    case 'maior':
+      produtosFiltrados.sort((a, b) => (b.preco || 0) - (a.preco || 0));
+      break;
+    case 'nome':
+      produtosFiltrados.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+      break;
+    default: // recentes
+      produtosFiltrados.sort((a, b) => {
+        const ta = a.createdAt ? a.createdAt.toMillis() : 0;
+        const tb = b.createdAt ? b.createdAt.toMillis() : 0;
+        return tb - ta;
+      });
+  }
+
+  renderizar();
+}
+
+function limparFiltros() {
+  document.querySelectorAll('.filter-cat:checked').forEach(c => c.checked = false);
+  document.querySelectorAll('.filter-corte:checked').forEach(c => c.checked = false);
+  document.querySelectorAll('.filter-tam:checked').forEach(c => c.checked = false);
+  document.getElementById('priceMin').value = '';
+  document.getElementById('priceMax').value = '';
+  document.getElementById('sortSelect').value = 'recentes';
+  aplicarFiltros();
+}
+
+// ============================================
+// RENDERIZAR
+// ============================================
+function renderizar() {
+  const grid = document.getElementById('prodGrid');
+  const empty = document.getElementById('prodEmpty');
+  const count = document.getElementById('prodCount');
+
+  count.textContent = `${produtosFiltrados.length} ${produtosFiltrados.length === 1 ? 'produto' : 'produtos'}`;
+
+  if (produtosFiltrados.length === 0) {
+    grid.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+
+  grid.style.display = 'grid';
+  empty.style.display = 'none';
+
+  grid.innerHTML = produtosFiltrados.map(p => {
+    const modelos = p.modelos || {};
+    const cortesList = Object.keys(modelos).filter(c => {
+      const estoques = modelos[c] || {};
+      return Object.values(estoques).some(q => q > 0);
+    });
+
+    return `
+      <div class="prod-card" data-id="${p.id}" onclick="abrirProduto('${p.id}')">
+        <div class="prod-card-img">
+          ${p.imagemUrl ? `<img src="${p.imagemUrl}" alt="${p.nome || ''}" loading="lazy">` : '👕'}
+          <div class="prod-card-overlay">
+            <button onclick="event.stopPropagation();adicionarAoCarrinho('${p.id}')" title="Adicionar ao carrinho">
+              <i class="ti ti-shopping-cart"></i>
+            </button>
+          </div>
+        </div>
+        <div class="prod-card-body">
+          <div class="prod-card-name">${p.nome || 'Produto'}</div>
+          ${p.versiculo ? `<div class="prod-card-verse">${p.versiculo}</div>` : ''}
+          <div class="prod-card-price">R$ ${(p.preco || 0).toFixed(2).replace('.',',')}</div>
+          ${cortesList.length > 0 ? `<div class="prod-card-cortes">${cortesList.map(c => `<span>${c}</span>`).join('')}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ============================================
+// ADICIONAR AO CARRINHO (direto do grid)
+// ============================================
+function adicionarAoCarrinho(produtoId) {
+  const produto = todosProdutos.find(p => p.id === produtoId);
+  if (!produto) return;
+
+  // Encontrar primeiro corte e tamanho disponível
+  const modelos = produto.modelos || {};
+  const cortes = Object.keys(modelos);
+  if (cortes.length === 0) return;
+
+  const primeiroCorte = cortes[0];
+  const estoques = modelos[primeiroCorte] || {};
+  const primeiroTam = Object.keys(estoques).find(t => (estoques[t] || 0) > 0) || 'M';
+
+  const item = {
+    id: produto.id,
+    nome: produto.nome,
+    preco: produto.preco,
+    versiculo: produto.versiculo || '',
+    imagem: produto.imagemUrl || '',
+    tamanho: primeiroTam,
+    corte: primeiroCorte,
+    quantidade: 1
+  };
+
+  // Salvar no localStorage
+  const saved = localStorage.getItem('attos2_carrinho');
+  const carrinho = saved ? JSON.parse(saved) : [];
+  const idx = carrinho.findIndex(i => i.id === item.id && i.tamanho === item.tamanho && i.corte === item.corte);
+  if (idx >= 0) {
+    carrinho[idx].quantidade += 1;
+  } else {
+    carrinho.push(item);
+  }
+  localStorage.setItem('attos2_carrinho', JSON.stringify(carrinho));
+
+  // Atualizar badge
+  atualizarBadgeCarrinho();
+
+  // Feedback visual
+  const btn = event.target.closest('button');
+  if (btn) {
+    const original = btn.innerHTML;
+    btn.innerHTML = '<i class="ti ti-check"></i>';
+    btn.style.background = '#4CAF50';
+    btn.style.color = '#fff';
+    setTimeout(() => {
+      btn.innerHTML = original;
+      btn.style.background = '';
+      btn.style.color = '';
+    }, 1200);
+  }
+}
+
+function atualizarBadgeCarrinho() {
+  const badge = document.getElementById('cartCountNav');
+  const saved = localStorage.getItem('attos2_carrinho');
+  if (saved) {
+    const itens = JSON.parse(saved);
+    const total = itens.reduce((acc, i) => acc + i.quantidade, 0);
+    badge.textContent = total;
+  } else {
+    badge.textContent = '0';
+  }
+}
+
+// ============================================
+// ABRIR PRODUTO (página de detalhe)
+// ============================================
+function abrirProduto(id) {
+  window.location.href = `produto-detalhe.html?id=${id}`;
+}
+
+// ============================================
+// FILTROS MOBILE
+// ============================================
+function abrirPainelFiltros() {
+  const panel = document.getElementById('filterPanelMobile');
+  panel.style.display = 'block';
+  // Sincronizar valores atuais dos filtros desktop para mobile
+  sincronizarFiltrosParaMobile();
+  requestAnimationFrame(() => {
+    panel.classList.add('active');
+  });
+  document.body.style.overflow = 'hidden';
+}
+
+function fecharPainelFiltros() {
+  const panel = document.getElementById('filterPanelMobile');
+  panel.classList.remove('active');
+  document.body.style.overflow = '';
+  setTimeout(() => {
+    panel.style.display = 'none';
+  }, 300);
+}
+
+function sincronizarFiltrosParaMobile() {
+  // Copiar estado dos filtros desktop para mobile
+  document.querySelectorAll('.filter-cat:checked').forEach(c => {
+    const mob = document.querySelector(`.filter-cat-mob[value="${c.value}"]`);
+    if (mob) mob.checked = true;
+  });
+  document.querySelectorAll('.filter-corte:checked').forEach(c => {
+    const mob = document.querySelector(`.filter-corte-mob[value="${c.value}"]`);
+    if (mob) mob.checked = true;
+  });
+  document.querySelectorAll('.filter-tam:checked').forEach(c => {
+    const mob = document.querySelector(`.filter-tam-mob[value="${c.value}"]`);
+    if (mob) mob.checked = true;
+  });
+  document.getElementById('priceMinMob').value = document.getElementById('priceMin').value;
+  document.getElementById('priceMaxMob').value = document.getElementById('priceMax').value;
+  document.getElementById('sortSelectMobile').value = document.getElementById('sortSelect').value;
+}
+
+function sincronizarFiltrosParaDesktop() {
+  // Copiar estado dos filtros mobile para desktop
+  document.querySelectorAll('.filter-cat-mob:checked').forEach(c => {
+    const desk = document.querySelector(`.filter-cat[value="${c.value}"]`);
+    if (desk) desk.checked = true;
+  });
+  document.querySelectorAll('.filter-corte-mob:checked').forEach(c => {
+    const desk = document.querySelector(`.filter-corte[value="${c.value}"]`);
+    if (desk) desk.checked = true;
+  });
+  document.querySelectorAll('.filter-tam-mob:checked').forEach(c => {
+    const desk = document.querySelector(`.filter-tam[value="${c.value}"]`);
+    if (desk) desk.checked = true;
+  });
+  document.getElementById('priceMin').value = document.getElementById('priceMinMob').value;
+  document.getElementById('priceMax').value = document.getElementById('priceMaxMob').value;
+  document.getElementById('sortSelect').value = document.getElementById('sortSelectMobile').value;
+}
+
+function aplicarFiltrosMobile() {
+  sincronizarFiltrosParaDesktop();
+  aplicarFiltros();
+  fecharPainelFiltros();
+}
+
+function limparFiltrosMobile() {
+  document.querySelectorAll('.filter-cat-mob:checked').forEach(c => c.checked = false);
+  document.querySelectorAll('.filter-corte-mob:checked').forEach(c => c.checked = false);
+  document.querySelectorAll('.filter-tam-mob:checked').forEach(c => c.checked = false);
+  document.getElementById('priceMinMob').value = '';
+  document.getElementById('priceMaxMob').value = '';
+  document.getElementById('sortSelectMobile').value = 'recentes';
+}
+
+function sincronizarSort() {
+  document.getElementById('sortSelect').value = document.getElementById('sortSelectMobile').value;
+  aplicarFiltros();
+}
+
+// Fechar painel ao clicar fora (backdrop)
+document.addEventListener('click', function(e) {
+  const panel = document.getElementById('filterPanelMobile');
+  if (panel.classList.contains('active')) {
+    // Se clicou no backdrop (fora do conteúdo), fechar
+    const content = panel.querySelector('.filter-panel-header');
+    if (!e.target.closest('.filter-panel-mobile') || e.target === panel) {
+      // Só fechar se clicou no backdrop escuro
+    }
+  }
+});
+
+// ============================================
+// AUTH STATE
+// ============================================
+auth.onAuthStateChanged(user => {
+  // Futuro: mostrar nome do usuário no navbar
+});
+
+// ============================================
+// INICIAR
+// ============================================
+atualizarBadgeCarrinho();
+carregarProdutos();
+</script>
+
+<!-- FOOTER -->
+<footer style="position:relative;z-index:1;background:#050505;border-top:1px solid rgba(212,175,55,0.08);padding:32px 20px;margin-top:60px">
+  <div style="display:flex;justify-content:space-between;align-items:center;max-width:1200px;margin:0 auto;flex-wrap:wrap;gap:12px">
+    <div style="font-family:Arial,sans-serif;font-size:0.6rem;letter-spacing:2px;color:rgba(255,255,255,0.25);text-transform:uppercase">© 2026 ATTOS2. Todos os direitos reservados.</div>
+    <div style="display:flex;align-items:center;gap:16px">
+      <span style="font-family:Arial,sans-serif;font-size:0.6rem;letter-spacing:1px;color:rgba(255,255,255,0.2)">Desenvolvido por <strong style="color:rgba(255,255,255,0.4)">Cleverson Hoffmann</strong></span>
+      <a href="admin/index.html" style="padding:6px 14px;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.2);border-radius:6px;color:#D4AF37;font-family:Arial,sans-serif;font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;text-decoration:none;transition:all 0.3s;display:flex;align-items:center;gap:4px" onmouseover="this.style.background='rgba(212,175,55,0.2)'" onmouseout="this.style.background='rgba(212,175,55,0.1)'"><i class="ti ti-shield-lock"></i> Admin</a>
+    </div>
+  </div>
+</footer>
+
+</body>

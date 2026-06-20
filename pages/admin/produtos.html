@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATTOS2 — Admin Produtos</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<link rel="icon" type="image/png" href="../../logo2.png">
+<script src="../../js/audit.js"></script>
+<style>
+:root {
+  --gold: #D4AF37; --gold2: #FFD700;
+  --bg: #0a0a0a; --bg2: #111; --card: #1a1a1a;
+  --border: rgba(212,175,55,0.15);
+  --text: rgba(255,255,255,0.85); --text2: rgba(255,255,255,0.5);
+  --success: #4CAF50; --danger: #f44336; --info: #2196F3;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background: var(--bg); color: var(--text); font-family: Arial, sans-serif; min-height: 100vh; }
+
+.admin-sidebar {
+  position: fixed; left: 0; top: 0; bottom: 0;
+  width: 220px; background: var(--bg2);
+  border-right: 1px solid var(--border);
+  padding: 24px 16px;
+  display: flex; flex-direction: column; z-index: 10;
+}
+.admin-sidebar .logo-sm { height: 28px; margin-bottom: 24px; opacity: 0.8; }
+.admin-sidebar nav { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.admin-sidebar a {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 8px;
+  color: var(--text2); text-decoration: none;
+  font-size: 0.75rem; letter-spacing: 1px; transition: all 0.2s;
+}
+.admin-sidebar a:hover, .admin-sidebar a.active { background: rgba(212,175,55,0.08); color: var(--gold); }
+.admin-sidebar .sair {
+  margin-top: auto; color: var(--text2); cursor: pointer;
+  padding: 10px 12px; border-radius: 8px;
+  font-size: 0.75rem; letter-spacing: 1px;
+  display: flex; align-items: center; gap: 10px;
+  transition: all 0.2s; border: none; background: none; font-family: Arial, sans-serif; width: 100%;
+}
+.admin-sidebar .sair:hover { background: rgba(244,67,54,0.1); color: var(--danger); }
+
+.admin-main { margin-left: 220px; padding: 32px; min-height: 100vh; }
+.admin-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
+}
+.admin-header h1 { font-size: 1.3rem; letter-spacing: 3px; font-weight: 400; }
+.admin-header h1 em { color: var(--gold); font-style: italic; }
+
+/* FILTROS */
+.filtros {
+  display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;
+  align-items: center;
+}
+.filtros select, .filtros input {
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 12px; color: #fff;
+  font-size: 0.75rem; outline: none; font-family: Arial, sans-serif;
+}
+.filtros select:focus, .filtros input:focus { border-color: var(--gold); }
+.filtros select option { background: #1a1a1a; color: #fff; }
+.filtros .btn-novo {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 16px; margin-left: auto;
+  background: linear-gradient(135deg, var(--gold), var(--gold2));
+  border: none; border-radius: 8px;
+  color: #050505; font-size: 0.7rem; letter-spacing: 2px;
+  text-transform: uppercase; font-weight: 700; cursor: pointer;
+  transition: all 0.3s; font-family: Arial, sans-serif;
+}
+.filtros .btn-novo:hover { box-shadow: 0 0 20px rgba(212,175,55,0.3); }
+
+/* TABELA */
+.admin-table-wrap {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; overflow-x: auto;
+}
+.admin-table { width: 100%; border-collapse: collapse; min-width: 800px; }
+.admin-table th {
+  text-align: left; padding: 12px 14px;
+  font-size: 0.55rem; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--text2); border-bottom: 1px solid var(--border); font-weight: 400;
+  white-space: nowrap;
+}
+.admin-table td { padding: 10px 14px; font-size: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.admin-table tr:last-child td { border-bottom: none; }
+.admin-table .prod-img {
+  width: 36px; height: 36px; border-radius: 6px;
+  background: linear-gradient(135deg, #2E0A4A, #4A0E17);
+  overflow: hidden; display: inline-block; vertical-align: middle;
+}
+.admin-table .prod-img img { width: 100%; height: 100%; object-fit: cover; }
+.admin-table .codigo-badge {
+  font-family: monospace; font-size: 0.6rem;
+  background: rgba(212,175,55,0.08); color: var(--gold);
+  padding: 2px 6px; border-radius: 4px;
+}
+.admin-table .btn-icon {
+  background: none; border: 1px solid var(--border); color: var(--text2);
+  width: 28px; height: 28px; border-radius: 6px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: all 0.2s; font-size: 0.8rem;
+}
+.admin-table .btn-icon:hover { border-color: var(--gold); color: var(--gold); }
+.admin-table .btn-icon.danger:hover { border-color: var(--danger); color: var(--danger); }
+.admin-table .destaque-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  font-size: 0.5rem; letter-spacing: 1px; text-transform: uppercase;
+  background: rgba(212,175,55,0.15); color: var(--gold); border: 1px solid rgba(212,175,55,0.3);
+}
+.admin-table .estoque-total {
+  font-size: 0.65rem; color: var(--text2);
+}
+
+/* MODAL */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7); z-index: 100;
+  align-items: center; justify-content: center; padding: 20px;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 16px; padding: 32px;
+  width: 100%; max-width: 800px; max-height: 90vh; overflow-y: auto;
+}
+.modal h2 { font-size: 1rem; letter-spacing: 2px; font-weight: 400; margin-bottom: 24px; }
+.modal h2 em { color: var(--gold); font-style: italic; }
+.modal h2 .codigo-ref {
+  font-family: monospace; font-size: 0.7rem; color: var(--text2);
+  font-weight: 400; letter-spacing: 0;
+}
+.modal-close {
+  float: right; background: none; border: none;
+  color: var(--text2); cursor: pointer; font-size: 1.2rem;
+}
+
+/* FORM */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-grid .full { grid-column: 1 / -1; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group label {
+  font-size: 0.6rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text2);
+  display: flex; align-items: center; gap: 4px;
+}
+.form-group label .required { color: var(--danger); }
+.form-group input, .form-group select, .form-group textarea {
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 14px; color: #fff;
+  font-size: 0.85rem; outline: none; transition: border-color 0.2s;
+  font-family: Arial, sans-serif;
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--gold); }
+.form-group textarea { resize: vertical; min-height: 60px; }
+.form-group select option { background: #1a1a1a; color: #fff; }
+.form-group .checkbox-label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.75rem; color: var(--text); cursor: pointer;
+}
+.form-group .checkbox-label input[type="checkbox"] { width: auto; }
+.form-group .hint {
+  font-size: 0.55rem; color: var(--text2); margin-top: 2px;
+}
+
+/* MODELOS (cortes x tamanhos) */
+.modelos-section {
+  margin-top: 8px;
+}
+.modelos-section .modelos-tabs {
+  display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap;
+}
+.modelos-section .modelos-tabs button {
+  padding: 6px 14px; background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text2); font-size: 0.65rem; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.2s; font-family: Arial, sans-serif;
+}
+.modelos-section .modelos-tabs button.active {
+  background: rgba(212,175,55,0.12); border-color: var(--gold); color: var(--gold);
+}
+.modelos-section .modelos-tabs button:hover { border-color: var(--gold); }
+
+.estoque-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+}
+.estoque-cell {
+  background: rgba(255,255,255,0.02); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px; text-align: center;
+}
+.estoque-cell .tam-label {
+  font-size: 0.65rem; color: var(--gold); font-weight: 700;
+  margin-bottom: 6px; letter-spacing: 1px;
+}
+.estoque-cell input {
+  width: 100%; padding: 6px; background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border); border-radius: 4px; color: #fff;
+  font-size: 0.8rem; outline: none; text-align: center;
+}
+.estoque-cell input:focus { border-color: var(--gold); }
+
+/* UPLOAD */
+.upload-area {
+  border: 2px dashed var(--border); border-radius: 8px;
+  padding: 20px; text-align: center; cursor: pointer;
+  transition: all 0.3s; margin-bottom: 12px;
+}
+.upload-area:hover { border-color: var(--gold); }
+.upload-area img { max-height: 120px; border-radius: 6px; margin-top: 8px; }
+.upload-area p { font-size: 0.7rem; color: var(--text2); margin-top: 8px; }
+
+.form-actions {
+  display: flex; gap: 8px; margin-top: 20px;
+}
+.form-actions .btn-save {
+  flex: 1; padding: 14px;
+  background: linear-gradient(135deg, var(--gold), var(--gold2));
+  border: none; border-radius: 8px; color: #050505;
+  font-size: 0.75rem; letter-spacing: 2px; text-transform: uppercase;
+  font-weight: 700; cursor: pointer; transition: all 0.3s; font-family: Arial, sans-serif;
+}
+.form-actions .btn-save:hover { box-shadow: 0 0 20px rgba(212,175,55,0.3); }
+.form-actions .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+.form-actions .btn-cancel {
+  padding: 14px 24px; background: transparent;
+  border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text2); font-size: 0.75rem; letter-spacing: 2px;
+  cursor: pointer; transition: all 0.2s; font-family: Arial, sans-serif;
+}
+.form-actions .btn-cancel:hover { border-color: var(--text); color: var(--text); }
+
+@media (max-width: 768px) {
+  .admin-sidebar { width: 60px; padding: 16px 8px; }
+  .admin-sidebar a span, .admin-sidebar .sair span { display: none; }
+  .admin-main { margin-left: 60px; padding: 20px 16px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .estoque-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<aside class="admin-sidebar">
+  <img src="../../logo2.png" class="logo-sm" alt="ATTOS2">
+  <nav>
+    <a href="index.html"><i class="ti ti-dashboard"></i><span>Dashboard</span></a>
+    <a href="produtos.html" class="active"><i class="ti ti-shirt"></i><span>Produtos</span></a>
+    <a href="pedidos.html"><i class="ti ti-package"></i><span>Pedidos</span></a>
+    <a href="config.html"><i class="ti ti-settings"></i><span>Configurações</span></a>
+  </nav>
+  <button class="sair" onclick="logoutAdmin()"><i class="ti ti-logout"></i><span>Sair</span></button>
+</aside>
+
+<main class="admin-main">
+  <div class="admin-header">
+    <h1>Gerenciar <em>Produtos</em></h1>
+  </div>
+
+  <div class="filtros">
+    <select id="filtroCategoria" onchange="carregarProdutos()">
+      <option value="">Todas as categorias</option>
+      <option value="masculino">Masculino</option>
+      <option value="feminino">Feminino</option>
+      <option value="infantil">Infantil</option>
+      <option value="acessorios">Acessórios</option>
+    </select>
+    <select id="filtroDestaque" onchange="carregarProdutos()">
+      <option value="">Todos</option>
+      <option value="destaque">Em destaque</option>
+      <option value="normal">Sem destaque</option>
+    </select>
+    <input type="text" id="filtroBusca" placeholder="Buscar por nome, código ou versículo..." oninput="carregarProdutos()">
+    <button class="btn-novo" onclick="abrirModal()"><i class="ti ti-plus"></i> Novo Produto</button>
+  </div>
+
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Código</th>
+          <th>Nome</th>
+          <th>Preço</th>
+          <th>Categoria</th>
+          <th>Versículo</th>
+          <th>Estoque</th>
+          <th>Destaque</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tabelaProdutos">
+        <tr><td colspan="9" style="text-align:center;color:var(--text2);padding:24px">Carregando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalProduto">
+  <div class="modal">
+    <button class="modal-close" onclick="fecharModal()"><i class="ti ti-x"></i></button>
+    <h2><span id="modalTitulo">Novo</span> <em>Produto</em> <span class="codigo-ref" id="modalCodigoRef"></span></h2>
+
+    <div class="form-grid">
+      <!-- IMAGEM -->
+      <div class="form-group full">
+        <label>Imagem do Produto</label>
+        <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+          <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="previewImagem(event)">
+          <i class="ti ti-photo-plus" style="font-size:1.5rem;opacity:0.5"></i>
+          <p>Clique para fazer upload</p>
+          <img id="previewImg" style="display:none">
+        </div>
+      </div>
+
+      <!-- CÓDIGO INTERNO -->
+      <div class="form-group">
+        <label><i class="ti ti-barcode"></i> Código Interno <span class="required">*</span></label>
+        <input type="text" id="prodCodigo" placeholder="Ex: CAM-001, FEM-002" style="text-transform:uppercase">
+        <span class="hint">Use para linkar com o app. Ex: CAM-001 (Camiseta 1), FEM-002 (Feminino 2)</span>
+      </div>
+
+      <!-- PREÇO -->
+      <div class="form-group">
+        <label>Preço (R$) <span class="required">*</span></label>
+        <input type="number" id="prodPreco" step="0.01" min="0" placeholder="79.90">
+      </div>
+
+      <!-- NOME -->
+      <div class="form-group full">
+        <label>Nome do Produto <span class="required">*</span></label>
+        <input type="text" id="prodNome" placeholder="Ex: Camiseta Eu Sou do Meu Amado">
+      </div>
+
+      <!-- CATEGORIA -->
+      <div class="form-group">
+        <label>Categoria <span class="required">*</span></label>
+        <select id="prodCategoria">
+          <option value="masculino">Masculino</option>
+          <option value="feminino">Feminino</option>
+          <option value="infantil">Infantil</option>
+          <option value="acessorios">Acessórios</option>
+        </select>
+      </div>
+
+      <!-- SUB-CATEGORIA -->
+      <div class="form-group">
+        <label>Sub-categoria</label>
+        <select id="prodSubcategoria">
+          <option value="">Nenhuma</option>
+          <option value="camisetas">Camisetas</option>
+          <option value="blusas">Blusas / Moletons</option>
+          <option value="calcas">Calças / Bermudas</option>
+          <option value="bones">Bonés / Acessórios</option>
+          <option value="casacos">Casacos / Jaquetas</option>
+        </select>
+      </div>
+
+      <!-- VERSÍCULO -->
+      <div class="form-group full">
+        <label>Versículo</label>
+        <input type="text" id="prodVersiculo" placeholder="Ex: Cânticos 2:16">
+      </div>
+
+      <!-- DESCRIÇÃO -->
+      <div class="form-group full">
+        <label>Descrição</label>
+        <textarea id="prodDescricao" placeholder="Descrição do produto, detalhes do tecido, etc."></textarea>
+      </div>
+
+      <!-- DESTAQUE -->
+      <div class="form-group full">
+        <div class="checkbox-label">
+          <input type="checkbox" id="prodDestaque">
+          <span>Produto em destaque (aparece na Home)</span>
+        </div>
+      </div>
+
+      <!-- ATIVO -->
+      <div class="form-group full">
+        <div class="checkbox-label">
+          <input type="checkbox" id="prodAtivo" checked>
+          <span>Produto ativo (visível na loja)</span>
+        </div>
+      </div>
+
+      <!-- MODELOS / CORTES E ESTOQUE -->
+      <div class="form-group full">
+        <label>Modelos / Cortes e Estoque</label>
+        <p style="font-size:0.6rem;color:var(--text2);margin-bottom:8px">
+          Defina o estoque para cada tamanho em cada corte. Deixe 0 se não tiver aquele tamanho.
+        </p>
+        <div class="modelos-section" id="modelosSection">
+          <!-- Gerado via JS -->
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-save" id="btnSalvar" onclick="salvarProduto()">Salvar Produto</button>
+      <button class="btn-cancel" onclick="fecharModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBVXuBi31G9pfviNGUY6uZ_1cFudKthmU0",
+  authDomain: "attos2-c2644.firebaseapp.com",
+  projectId: "attos2-c2644",
+  storageBucket: "attos2-c2644.firebasestorage.app",
+  messagingSenderId: "1021391388902",
+  appId: "1:1021391388902:web:b349b39a74994569bebb27",
+  measurementId: "G-WQYHW5DPBC"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
+
+const CORTES = ['Tradicional', 'Slim Fit', 'Oversized', 'Longline'];
+const TAMANHOS = ['P', 'M', 'G', 'GG'];
+
+let editandoId = null;
+let imagemFile = null;
+let imagemUrlAtual = '';
+let corteAtivo = 'Tradicional';
+
+// ============================================
+// AUTH
+// ============================================
+auth.onAuthStateChanged(async user => {
+  if (!user) { window.location.href = 'index.html'; return; }
+  try {
+    const doc = await db.collection('admins').doc(user.uid).get();
+    if (!doc.exists) { auth.signOut(); window.location.href = 'index.html'; }
+  } catch(e) { auth.signOut(); window.location.href = 'index.html'; }
+});
+
+function logoutAdmin() { auth.signOut(); window.location.href = 'index.html'; }
+
+// ============================================
+// CARREGAR PRODUTOS
+// ============================================
+async function carregarProdutos() {
+  try {
+    const catFiltro = document.getElementById('filtroCategoria').value;
+    const destFiltro = document.getElementById('filtroDestaque').value;
+    const busca = document.getElementById('filtroBusca').value.toLowerCase().trim();
+
+    let query = db.collection('produtos').orderBy('createdAt', 'desc');
+    if (catFiltro) {
+      query = query.where('categoria', '==', catFiltro);
+    }
+
+    const snap = await query.get();
+    const tbody = document.getElementById('tabelaProdutos');
+
+    if (snap.empty) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text2);padding:24px">Nenhum produto cadastrado.</td></tr>';
+      return;
+    }
+
+    let produtos = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // Filtro destaque
+    if (destFiltro === 'destaque') produtos = produtos.filter(p => p.destaque);
+    else if (destFiltro === 'normal') produtos = produtos.filter(p => !p.destaque);
+
+    // Filtro busca
+    if (busca) {
+      produtos = produtos.filter(p =>
+        (p.nome || '').toLowerCase().includes(busca) ||
+        (p.codigo || '').toLowerCase().includes(busca) ||
+        (p.versiculo || '').toLowerCase().includes(busca)
+      );
+    }
+
+    if (produtos.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text2);padding:24px">Nenhum produto encontrado.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = produtos.map(p => {
+      // Calcular estoque total
+      let estoqueTotal = 0;
+      if (p.modelos) {
+        Object.values(p.modelos).forEach(corte => {
+          Object.values(corte).forEach(qtd => { estoqueTotal += qtd || 0; });
+        });
+      }
+
+      return `
+        <tr>
+          <td>
+            <div class="prod-img">
+              ${p.imagemUrl ? `<img src="${p.imagemUrl}" alt="${p.nome}">` : '<i class="ti ti-shirt" style="opacity:0.3;font-size:1.2rem;display:flex;align-items:center;justify-content:center;height:100%"></i>'}
+            </div>
+          </td>
+          <td><span class="codigo-badge">${p.codigo || '—'}</span></td>
+          <td>${p.nome}</td>
+          <td style="color:var(--gold)">R$ ${(p.preco || 0).toFixed(2).replace('.',',')}</td>
+          <td style="text-transform:capitalize;font-size:0.7rem">${p.categoria}${p.subcategoria ? ' / ' + p.subcategoria : ''}</td>
+          <td style="font-size:0.65rem;color:var(--text2)">${p.versiculo || '—'}</td>
+          <td><span class="estoque-total">${estoqueTotal} un.</span></td>
+          <td>${p.destaque ? '<span class="destaque-badge">Destaque</span>' : '—'}</td>
+          <td>
+            <div style="display:flex;gap:4px">
+              <button class="btn-icon" onclick="editarProduto('${p.id}')" title="Editar"><i class="ti ti-edit"></i></button>
+              <button class="btn-icon" onclick="duplicarProduto('${p.id}')" title="Duplicar"><i class="ti ti-copy"></i></button>
+              <button class="btn-icon danger" onclick="excluirProduto('${p.id}')" title="Excluir"><i class="ti ti-trash"></i></button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('Erro ao carregar produtos:', err);
+  }
+}
+
+// ============================================
+// MODAL
+// ============================================
+function gerarModelosForm(modelos) {
+  const section = document.getElementById('modelosSection');
+
+  // Abas de cortes
+  let tabsHtml = '<div class="modelos-tabs">';
+  CORTES.forEach(corte => {
+    const active = corte === corteAtivo ? 'active' : '';
+    tabsHtml += `<button class="${active}" onclick="mudarCorte('${corte}')">${corte}</button>`;
+  });
+  tabsHtml += '</div>';
+
+  // Grid de estoque do corte ativo
+  const estoque = (modelos && modelos[corteAtivo]) || {};
+  let gridHtml = '<div class="estoque-grid">';
+  TAMANHOS.forEach(tam => {
+    gridHtml += `
+      <div class="estoque-cell">
+        <div class="tam-label">${tam}</div>
+        <input type="number" class="estoque-input" data-corte="${corteAtivo}" data-tam="${tam}"
+          value="${estoque[tam] || 0}" min="0" placeholder="0">
+      </div>
+    `;
+  });
+  gridHtml += '</div>';
+
+  section.innerHTML = tabsHtml + gridHtml;
+}
+
+function mudarCorte(corte) {
+  // Salvar valores atuais antes de trocar
+  document.querySelectorAll('.estoque-input').forEach(input => {
+    const corte = input.dataset.corte;
+    const tam = input.dataset.tam;
+    const val = parseInt(input.value) || 0;
+    if (!window._modelosTemp) window._modelosTemp = {};
+    if (!window._modelosTemp[corte]) window._modelosTemp[corte] = {};
+    window._modelosTemp[corte][tam] = val;
+  });
+
+  corteAtivo = corte;
+  gerarModelosForm(window._modelosTemp);
+}
+
+function coletarModelos() {
+  // 1. Salvar a aba atual em _modelosTemp primeiro
+  document.querySelectorAll('.estoque-input').forEach(input => {
+    const corte = input.dataset.corte;
+    const tam = input.dataset.tam;
+    const qtd = parseInt(input.value) || 0;
+    if (!window._modelosTemp) window._modelosTemp = {};
+    if (!window._modelosTemp[corte]) window._modelosTemp[corte] = {};
+    window._modelosTemp[corte][tam] = qtd;
+  });
+  // 2. Retornar TODOS os cortes (inclusive os das outras abas)
+  return window._modelosTemp || {};
+}
+
+
+function abrirModal(produto) {
+  editandoId = produto ? produto.id : null;
+  imagemFile = null;
+  imagemUrlAtual = '';
+  // Inicializar _modelosTemp com os dados do Firestore (se for edição)
+  window._modelosTemp = produto ? JSON.parse(JSON.stringify(produto.modelos || {})) : {};
+  corteAtivo = 'Tradicional';
+
+
+  document.getElementById('modalTitulo').textContent = produto ? 'Editar' : 'Novo';
+  document.getElementById('btnSalvar').textContent = produto ? 'Atualizar Produto' : 'Salvar Produto';
+  document.getElementById('prodCodigo').value = produto ? (produto.codigo || '') : '';
+  document.getElementById('prodNome').value = produto ? produto.nome : '';
+  document.getElementById('prodPreco').value = produto ? produto.preco : '';
+  document.getElementById('prodCategoria').value = produto ? produto.categoria : 'masculino';
+  document.getElementById('prodSubcategoria').value = produto ? (produto.subcategoria || '') : '';
+  document.getElementById('prodVersiculo').value = produto ? (produto.versiculo || '') : '';
+  document.getElementById('prodDescricao').value = produto ? (produto.descricao || '') : '';
+  document.getElementById('prodDestaque').checked = produto ? !!produto.destaque : false;
+  document.getElementById('prodAtivo').checked = produto ? (produto.ativo !== false) : true;
+
+  // Código ref
+  document.getElementById('modalCodigoRef').textContent = produto ? `#${produto.codigo || produto.id.slice(0,8)}` : '';
+
+  gerarModelosForm(window._modelosTemp);
+
+
+  // Preview da imagem
+  const preview = document.getElementById('previewImg');
+  if (produto && produto.imagemUrl) {
+    preview.src = produto.imagemUrl;
+    preview.style.display = 'block';
+    imagemUrlAtual = produto.imagemUrl;
+    document.querySelector('.upload-area p').textContent = 'Clique para trocar a imagem';
+  } else {
+    preview.style.display = 'none';
+    document.querySelector('.upload-area p').textContent = 'Clique para fazer upload';
+  }
+
+  document.getElementById('modalProduto').classList.add('active');
+}
+
+function fecharModal() {
+  document.getElementById('modalProduto').classList.remove('active');
+  editandoId = null;
+  imagemFile = null;
+  imagemUrlAtual = '';
+  window._modelosTemp = null;
+}
+
+// ============================================
+// UPLOAD DE IMAGEM
+// ============================================
+function previewImagem(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  imagemFile = file;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const preview = document.getElementById('previewImg');
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    document.querySelector('.upload-area p').textContent = file.name;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function fazerUpload(userId) {
+  if (!imagemFile) return imagemUrlAtual;
+  const path = `produtos/${userId}_${Date.now()}_${imagemFile.name}`;
+  const ref = storage.ref(path);
+  await ref.put(imagemFile);
+  return await ref.getDownloadURL();
+}
+
+// ============================================
+// SALVAR PRODUTO
+// ============================================
+async function salvarProduto() {
+  const codigo = document.getElementById('prodCodigo').value.trim().toUpperCase();
+  const nome = document.getElementById('prodNome').value.trim();
+  const preco = parseFloat(document.getElementById('prodPreco').value);
+  const categoria = document.getElementById('prodCategoria').value;
+  const subcategoria = document.getElementById('prodSubcategoria').value;
+  const versiculo = document.getElementById('prodVersiculo').value.trim();
+  const descricao = document.getElementById('prodDescricao').value.trim();
+  const destaque = document.getElementById('prodDestaque').checked;
+  const ativo = document.getElementById('prodAtivo').checked;
+
+  if (!codigo) { alert('Informe o código interno do produto.'); document.getElementById('prodCodigo').focus(); return; }
+  if (!nome) { alert('Informe o nome do produto.'); document.getElementById('prodNome').focus(); return; }
+  if (!preco || preco <= 0) { alert('Informe o preço do produto.'); document.getElementById('prodPreco').focus(); return; }
+
+  const btn = document.getElementById('btnSalvar');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+
+  try {
+    // Upload da imagem
+    let imagemUrl = imagemUrlAtual;
+    if (imagemFile) {
+      imagemUrl = await fazerUpload(auth.currentUser.uid);
+    }
+
+    // Coletar modelos (estoque por corte x tamanho)
+    const modelos = coletarModelos();
+
+    const dados = {
+      codigo, nome, preco, categoria, subcategoria,
+      versiculo, descricao, destaque, ativo,
+      modelos, imagemUrl,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    if (editandoId) {
+      // Buscar dados antigos para auditoria
+      const docAntigo = await db.collection('produtos').doc(editandoId).get();
+      const dadosAntigos = docAntigo.data();
+
+      await db.collection('produtos').doc(editandoId).update(dados);
+
+      await registrarAuditoria(db, auth.currentUser, 'editou_produto',
+        `Produto: ${nome} (${codigo})`,
+        'produtos', editandoId,
+        { nome: dadosAntigos.nome, codigo: dadosAntigos.codigo, preco: dadosAntigos.preco },
+        { nome, codigo, preco }
+      );
+    } else {
+      dados.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      const ref = await db.collection('produtos').add(dados);
+
+      await registrarAuditoria(db, auth.currentUser, 'criou_produto',
+        `Produto: ${nome} (${codigo})`,
+        'produtos', ref.id,
+        null,
+        { nome, codigo, preco, categoria }
+      );
+    }
+
+    fecharModal();
+    carregarProdutos();
+  } catch (err) {
+    console.error('Erro ao salvar:', err);
+    alert('Erro ao salvar produto.');
+  }
+
+  btn.disabled = false;
+  btn.textContent = editandoId ? 'Atualizar Produto' : 'Salvar Produto';
+}
+
+// ============================================
+// DUPLICAR PRODUTO
+// ============================================
+async function duplicarProduto(id) {
+  try {
+    const doc = await db.collection('produtos').doc(id).get();
+    if (!doc.exists) return;
+    const p = doc.data();
+
+    const dados = {
+      ...p,
+      codigo: p.codigo ? p.codigo + '-COPY' : '',
+      nome: p.nome + ' (cópia)',
+      destaque: false,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    delete dados.id;
+
+    const ref = await db.collection('produtos').add(dados);
+
+    await registrarAuditoria(db, auth.currentUser, 'criou_produto',
+      `Produto duplicado: ${dados.nome} (${dados.codigo}) — original: ${p.nome}`,
+      'produtos', ref.id
+    );
+
+    carregarProdutos();
+  } catch (err) {
+    console.error('Erro ao duplicar:', err);
+    alert('Erro ao duplicar produto.');
+  }
+}
+
+// ============================================
+// EDITAR
+// ============================================
+async function editarProduto(id) {
+  try {
+    const doc = await db.collection('produtos').doc(id).get();
+    if (doc.exists) {
+      abrirModal({ id: doc.id, ...doc.data() });
+    }
+  } catch (err) {
+    console.error('Erro ao editar:', err);
+  }
+}
+
+// ============================================
+// EXCLUIR
+// ============================================
+async function excluirProduto(id) {
+  if (!confirm('Tem certeza que deseja excluir este produto?')) return;
+
+  try {
+    const doc = await db.collection('produtos').doc(id).get();
+    const p = doc.data();
+
+    await db.collection('produtos').doc(id).delete();
+
+    await registrarAuditoria(db, auth.currentUser, 'excluiu_produto',
+      `Produto: ${p.nome} (${p.codigo || 'sem código'})`,
+      'produtos', id,
+      { nome: p.nome, codigo: p.codigo }
+    );
+
+    carregarProdutos();
+  } catch (err) {
+    console.error('Erro ao excluir:', err);
+    alert('Erro ao excluir produto.');
+  }
+}
+
+// ============================================
+// INICIAR
+// ============================================
+carregarProdutos();
+</script>
+</body>
+</html>

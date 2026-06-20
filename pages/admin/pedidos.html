@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATTOS2 — Admin Pedidos</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<link rel="icon" type="image/png" href="../../logo2.png">
+<script src="../../js/audit.js"></script>
+<style>
+:root {
+  --gold: #D4AF37; --gold2: #FFD700;
+  --bg: #0a0a0a; --bg2: #111; --card: #1a1a1a;
+  --border: rgba(212,175,55,0.15);
+  --text: rgba(255,255,255,0.85); --text2: rgba(255,255,255,0.5);
+  --success: #4CAF50; --warning: #FF9800; --info: #2196F3; --danger: #f44336;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background: var(--bg); color: var(--text); font-family: Arial, sans-serif; min-height: 100vh; }
+
+.admin-sidebar {
+  position: fixed; left: 0; top: 0; bottom: 0;
+  width: 220px; background: var(--bg2);
+  border-right: 1px solid var(--border);
+  padding: 24px 16px;
+  display: flex; flex-direction: column; z-index: 10;
+}
+.admin-sidebar .logo-sm { height: 28px; margin-bottom: 24px; opacity: 0.8; }
+.admin-sidebar nav { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.admin-sidebar a {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 8px;
+  color: var(--text2); text-decoration: none;
+  font-size: 0.75rem; letter-spacing: 1px; transition: all 0.2s;
+}
+.admin-sidebar a:hover, .admin-sidebar a.active { background: rgba(212,175,55,0.08); color: var(--gold); }
+.admin-sidebar .sair {
+  margin-top: auto; color: var(--text2); cursor: pointer;
+  padding: 10px 12px; border-radius: 8px;
+  font-size: 0.75rem; letter-spacing: 1px;
+  display: flex; align-items: center; gap: 10px;
+  transition: all 0.2s; border: none; background: none; font-family: Arial, sans-serif; width: 100%;
+}
+.admin-sidebar .sair:hover { background: rgba(244,67,54,0.1); color: var(--danger); }
+
+.admin-main { margin-left: 220px; padding: 32px; min-height: 100vh; }
+.admin-header { margin-bottom: 24px; }
+.admin-header h1 { font-size: 1.3rem; letter-spacing: 3px; font-weight: 400; }
+.admin-header h1 em { color: var(--gold); font-style: italic; }
+
+/* FILTROS */
+.filtros {
+  display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;
+}
+.filtros select, .filtros input {
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 12px; color: #fff;
+  font-size: 0.75rem; outline: none; font-family: Arial, sans-serif;
+}
+.filtros select:focus, .filtros input:focus { border-color: var(--gold); }
+.filtros select option { background: #1a1a1a; color: #fff; }
+
+/* TABELA */
+.admin-table-wrap {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; overflow: hidden;
+}
+.admin-table { width: 100%; border-collapse: collapse; }
+.admin-table th {
+  text-align: left; padding: 14px 16px;
+  font-size: 0.6rem; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--text2); border-bottom: 1px solid var(--border); font-weight: 400;
+}
+.admin-table td { padding: 12px 16px; font-size: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.admin-table tr:last-child td { border-bottom: none; }
+.admin-table .status {
+  display: inline-block; padding: 3px 10px; border-radius: 12px;
+  font-size: 0.6rem; letter-spacing: 1px; text-transform: uppercase; font-weight: 700;
+}
+.status.aguardando_pagamento { background: rgba(255,152,0,0.15); color: var(--warning); border: 1px solid rgba(255,152,0,0.3); }
+.status.pago { background: rgba(33,150,243,0.15); color: var(--info); border: 1px solid rgba(33,150,243,0.3); }
+.status.enviado { background: rgba(76,175,80,0.15); color: var(--success); border: 1px solid rgba(76,175,80,0.3); }
+.status.entregue { background: rgba(76,175,80,0.15); color: var(--success); border: 1px solid rgba(76,175,80,0.3); }
+.status.cancelado { background: rgba(244,67,54,0.15); color: var(--danger); border: 1px solid rgba(244,67,54,0.3); }
+
+.admin-table .btn-icon {
+  background: none; border: 1px solid var(--border); color: var(--text2);
+  width: 30px; height: 30px; border-radius: 6px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: all 0.2s; font-size: 0.85rem;
+}
+.admin-table .btn-icon:hover { border-color: var(--gold); color: var(--gold); }
+
+/* MODAL DETALHE */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7); z-index: 100;
+  align-items: center; justify-content: center; padding: 20px;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 16px; padding: 32px;
+  width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto;
+}
+.modal h2 { font-size: 1rem; letter-spacing: 2px; font-weight: 400; margin-bottom: 16px; }
+.modal h2 em { color: var(--gold); font-style: italic; }
+.modal-close { float: right; background: none; border: none; color: var(--text2); cursor: pointer; font-size: 1.2rem; }
+.modal-info { font-size: 0.8rem; line-height: 1.8; }
+.modal-info strong { color: var(--gold); }
+.modal-info .itens-list { margin: 12px 0; }
+.modal-info .itens-list .item { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.modal-info .itens-list .item:last-child { border-bottom: none; }
+
+.modal .form-group { margin-bottom: 12px; }
+.modal .form-group label { font-size: 0.6rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text2); display: block; margin-bottom: 4px; }
+.modal .form-group select, .modal .form-group input {
+  width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border); border-radius: 8px; color: #fff;
+  font-size: 0.85rem; outline: none; font-family: Arial, sans-serif;
+}
+.modal .form-group select:focus, .modal .form-group input:focus { border-color: var(--gold); }
+.modal .form-group select option { background: #1a1a1a; color: #fff; }
+.modal .btn-save {
+  width: 100%; padding: 14px;
+  background: linear-gradient(135deg, var(--gold), var(--gold2));
+  border: none; border-radius: 8px; color: #050505;
+  font-size: 0.75rem; letter-spacing: 2px; text-transform: uppercase;
+  font-weight: 700; cursor: pointer; transition: all 0.3s; font-family: Arial, sans-serif;
+}
+.modal .btn-save:hover { box-shadow: 0 0 20px rgba(212,175,55,0.3); }
+
+@media (max-width: 768px) {
+  .admin-sidebar { width: 60px; padding: 16px 8px; }
+  .admin-sidebar a span, .admin-sidebar .sair span { display: none; }
+  .admin-main { margin-left: 60px; padding: 20px 16px; }
+}
+</style>
+</head>
+<body>
+
+<aside class="admin-sidebar">
+  <img src="../../logo2.png" class="logo-sm" alt="ATTOS2">
+  <nav>
+    <a href="index.html"><i class="ti ti-dashboard"></i><span>Dashboard</span></a>
+    <a href="produtos.html"><i class="ti ti-shirt"></i><span>Produtos</span></a>
+    <a href="pedidos.html" class="active"><i class="ti ti-package"></i><span>Pedidos</span></a>
+    <a href="config.html"><i class="ti ti-settings"></i><span>Configurações</span></a>
+  </nav>
+  <button class="sair" onclick="logoutAdmin()"><i class="ti ti-logout"></i><span>Sair</span></button>
+</aside>
+
+<main class="admin-main">
+  <div class="admin-header">
+    <h1>Gerenciar <em>Pedidos</em></h1>
+  </div>
+
+  <div class="filtros">
+    <select id="filtroStatus" onchange="carregarPedidos()">
+      <option value="">Todos os status</option>
+      <option value="aguardando_pagamento">Aguardando Pagamento</option>
+      <option value="pago">Pago</option>
+      <option value="enviado">Enviado</option>
+      <option value="entregue">Entregue</option>
+      <option value="cancelado">Cancelado</option>
+    </select>
+    <input type="text" id="filtroBusca" placeholder="Buscar por nome ou email..." oninput="carregarPedidos()">
+  </div>
+
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Pedido</th>
+          <th>Cliente</th>
+          <th>Itens</th>
+          <th>Total</th>
+          <th>Status</th>
+          <th>Data</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tabelaPedidos">
+        <tr><td colspan="7" style="text-align:center;color:var(--text2);padding:24px">Carregando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<!-- MODAL DETALHE -->
+<div class="modal-overlay" id="modalPedido">
+  <div class="modal">
+    <button class="modal-close" onclick="fecharModal()"><i class="ti ti-x"></i></button>
+    <h2>Detalhes do <em>Pedido</em></h2>
+    <div class="modal-info" id="detalhesPedido"></div>
+    <div style="margin-top:16px">
+      <div class="form-group">
+        <label>Status</label>
+        <select id="editStatus">
+          <option value="aguardando_pagamento">Aguardando Pagamento</option>
+          <option value="pago">Pago</option>
+          <option value="enviado">Enviado</option>
+          <option value="entregue">Entregue</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Código de Rastreio</label>
+        <input type="text" id="editRastreio" placeholder="Ex: BR123456789">
+      </div>
+      <button class="btn-save" onclick="atualizarPedido()">Atualizar Pedido</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBVXuBi31G9pfviNGUY6uZ_1cFudKthmU0",
+  authDomain: "attos2-c2644.firebaseapp.com",
+  projectId: "attos2-c2644",
+  storageBucket: "attos2-c2644.firebasestorage.app",
+  messagingSenderId: "1021391388902",
+  appId: "1:1021391388902:web:b349b39a74994569bebb27",
+  measurementId: "G-WQYHW5DPBC"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+const STATUS_LABELS = {
+  aguardando_pagamento: 'Aguardando Pagamento',
+  pago: 'Pago', enviado: 'Enviado', entregue: 'Entregue', cancelado: 'Cancelado'
+};
+
+let pedidoEditandoId = null;
+
+auth.onAuthStateChanged(async user => {
+  if (!user) { window.location.href = 'index.html'; return; }
+  try {
+    const doc = await db.collection('admins').doc(user.uid).get();
+    if (!doc.exists) { auth.signOut(); window.location.href = 'index.html'; }
+  } catch(e) { auth.signOut(); window.location.href = 'index.html'; }
+});
+
+function logoutAdmin() { auth.signOut(); window.location.href = 'index.html'; }
+
+async function carregarPedidos() {
+  try {
+    const statusFiltro = document.getElementById('filtroStatus').value;
+    const busca = document.getElementById('filtroBusca').value.toLowerCase().trim();
+
+    let query = db.collection('pedidos').orderBy('createdAt', 'desc');
+    if (statusFiltro) {
+      query = query.where('status', '==', statusFiltro);
+    }
+
+    const snap = await query.get();
+    const tbody = document.getElementById('tabelaPedidos');
+
+    if (snap.empty) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text2);padding:24px">Nenhum pedido encontrado.</td></tr>';
+      return;
+    }
+
+    let pedidos = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // Filtrar por busca
+    if (busca) {
+      pedidos = pedidos.filter(p =>
+        (p.clienteNome || '').toLowerCase().includes(busca) ||
+        (p.clienteEmail || '').toLowerCase().includes(busca) ||
+        p.id.toLowerCase().includes(busca)
+      );
+    }
+
+    if (pedidos.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text2);padding:24px">Nenhum pedido encontrado.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = pedidos.map(p => {
+      const data = p.createdAt ? p.createdAt.toDate().toLocaleDateString('pt-BR') : '';
+      const totalItens = (p.itens || []).reduce((acc, i) => acc + (i.quantidade || 0), 0);
+      return `
+        <tr>
+          <td style="color:var(--text2);font-size:0.7rem">#${p.id.slice(0,8)}</td>
+          <td>${p.clienteNome || p.clienteEmail || '—'}</td>
+          <td style="font-size:0.7rem">${totalItens} ${totalItens === 1 ? 'item' : 'itens'}</td>
+          <td style="color:var(--gold)">R$ ${(p.total || 0).toFixed(2).replace('.',',')}</td>
+          <td><span class="status ${p.status || 'aguardando_pagamento'}">${STATUS_LABELS[p.status] || p.status}</span></td>
+          <td style="color:var(--text2);font-size:0.7rem">${data}</td>
+          <td>
+            <button class="btn-icon" onclick="abrirDetalhe('${p.id}')" title="Detalhes"><i class="ti ti-eye"></i></button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('Erro ao carregar pedidos:', err);
+  }
+}
+
+async function abrirDetalhe(id) {
+  try {
+    const doc = await db.collection('pedidos').doc(id).get();
+    if (!doc.exists) return;
+    const p = doc.data();
+    pedidoEditandoId = id;
+
+    const data = p.createdAt ? p.createdAt.toDate().toLocaleString('pt-BR') : '';
+    const itensHtml = (p.itens || []).map(item => `
+      <div class="item">
+        <span>${item.nome}</span>
+        <span style="color:var(--text2);font-size:0.7rem">${item.tamanho} • ${item.corte || ''} • x${item.quantidade}</span>
+        <span style="color:var(--gold);margin-left:auto">R$ ${(item.preco * item.quantidade).toFixed(2).replace('.',',')}</span>
+      </div>
+    `).join('');
+
+    const end = p.enderecoEntrega || {};
+    const pagData = p.pagamentoData || {};
+    const metodoLabel = pagData.billingType === 'PIX' ? '💠 PIX' : pagData.billingType === 'CREDIT_CARD' ? '💳 Cartão' : '—';
+    const parcelasInfo = pagData.parcelas > 1 ? ` (${pagData.parcelas}x)` : '';
+    const cpfFormatado = p.cpfCnpj ? 
+      p.cpfCnpj.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4') : '—';
+
+    document.getElementById('detalhesPedido').innerHTML = `
+      <p><strong>Pedido:</strong> #${id.slice(0,8)}</p>
+      <p><strong>Cliente:</strong> ${p.clienteNome || '—'} (${p.clienteEmail || '—'})</p>
+      <p><strong>CPF:</strong> ${cpfFormatado}</p>
+      <p><strong>Telefone:</strong> ${p.clienteTelefone || '—'}</p>
+      <p><strong>Data:</strong> ${data}</p>
+      <p><strong>Pagamento:</strong> ${metodoLabel}${parcelasInfo}</p>
+      ${pagData.id ? `<p><strong>ID Asaas:</strong> <span style="font-size:0.7rem;color:var(--text2)">${pagData.id}</span></p>` : ''}
+      <p><strong>Endereço:</strong> ${end.logradouro || ''}, ${end.bairro || ''}, ${end.cidade || ''} ${end.estado || ''} - ${end.cep || ''}</p>
+      <div class="itens-list">${itensHtml}</div>
+      <p><strong>Subtotal:</strong> R$ ${(p.subtotal || 0).toFixed(2).replace('.',',')}</p>
+      <p><strong>Frete:</strong> R$ ${(p.frete || 0).toFixed(2).replace('.',',')}</p>
+      <p style="color:var(--gold);font-size:1rem"><strong>Total:</strong> R$ ${(p.total || 0).toFixed(2).replace('.',',')}</p>
+      ${p.codigoRastreio ? `<p><strong>Rastreio:</strong> ${p.codigoRastreio}</p>` : ''}
+    `;
+
+    document.getElementById('editStatus').value = p.status || 'aguardando_pagamento';
+    document.getElementById('editRastreio').value = p.codigoRastreio || '';
+    document.getElementById('modalPedido').classList.add('active');
+  } catch (err) {
+    console.error('Erro ao abrir detalhe:', err);
+  }
+}
+
+async function atualizarPedido() {
+  if (!pedidoEditandoId) return;
+  const status = document.getElementById('editStatus').value;
+  const codigoRastreio = document.getElementById('editRastreio').value.trim();
+
+  try {
+    // Buscar dados antigos para auditoria
+    const docAntigo = await db.collection('pedidos').doc(pedidoEditandoId).get();
+    const dadosAntigos = docAntigo.data();
+
+    await db.collection('pedidos').doc(pedidoEditandoId).update({ status, codigoRastreio });
+
+    // Registrar auditoria
+    await registrarAuditoria(db, auth.currentUser, 'atualizou_pedido',
+      `Pedido #${pedidoEditandoId.slice(0,8)}: status ${dadosAntigos.status} → ${status}${codigoRastreio ? ', rastreio: ' + codigoRastreio : ''}`,
+      'pedidos', pedidoEditandoId,
+      { status: dadosAntigos.status, codigoRastreio: dadosAntigos.codigoRastreio },
+      { status, codigoRastreio }
+    );
+
+    fecharModal();
+    carregarPedidos();
+  } catch (err) {
+    console.error('Erro ao atualizar pedido:', err);
+    alert('Erro ao atualizar pedido.');
+  }
+}
+
+function fecharModal() {
+  document.getElementById('modalPedido').classList.remove('active');
+  pedidoEditandoId = null;
+}
+
+carregarPedidos();
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+node_modules/
+firebase-debug.log
+.firebase/
+*.log
+.DS_Store
+.env
+.env.*
+chave_limpa.txt
+*.key
+*_key.txt

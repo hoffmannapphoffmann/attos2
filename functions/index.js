@@ -357,9 +357,10 @@ exports.calcularFrete = onRequest(
 
       const fretes = response.data;
 
-      // Filtrar e formatar resultados
+      // Filtrar e formatar resultados — apenas PAC e SEDEX (Correios)
+      const servicosPermitidos = ["1", "2"]; // 1=PAC, 2=SEDEX
       const resultados = fretes
-        .filter(f => !f.error)
+        .filter(f => !f.error && servicosPermitidos.includes(String(f.id)))
         .map(f => ({
           servico: String(f.id || ""),
           nome: f.name || "Transportadora",
@@ -369,10 +370,11 @@ exports.calcularFrete = onRequest(
           valor: parseFloat(f.custom_price || f.price || 0),
           empresa: f.company?.name || ""
         }))
-        .filter(f => f.valor > 0);
+        .filter(f => f.valor > 0)
+        .sort((a, b) => a.valor - b.valor); // Mais barato primeiro
 
 
-      logger.info(`Frete calculado: ${resultados.length} opções encontradas`);
+      logger.info(`Frete calculado: ${resultados.length} opções (PAC/SEDEX)`);
 
       res.json({
         success: true,

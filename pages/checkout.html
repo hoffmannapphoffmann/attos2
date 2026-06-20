@@ -668,7 +668,9 @@ let carrinho = [];
 let enderecos = [];
 let enderecoSelecionado = null;
 let freteValor = 0;
+let freteSelecionado = null; // { nome, prazo, servico, empresa }
 let clienteDoc = null;
+
 
 // ============================================
 // VERIFICAR LOGIN
@@ -969,6 +971,7 @@ async function calcularFrete() {
 // Selecionar uma opção de frete
 function selecionarFrete(idx, valor, nome, prazo) {
   freteValor = valor;
+  freteSelecionado = { nome, prazo, valor };
 
   // Atualizar visual dos radio buttons
   document.querySelectorAll('.frete-opcao').forEach((el, i) => {
@@ -979,6 +982,7 @@ function selecionarFrete(idx, valor, nome, prazo) {
 
   atualizarResumo();
 }
+
 
 // Fallback: frete fixo de R$ 20,00
 function usarFreteFixo() {
@@ -1141,8 +1145,14 @@ async function confirmarPedido() {
       })),
       subtotal: subtotal,
       frete: freteValor,
+      freteInfo: freteSelecionado ? {
+        servico: freteSelecionado.nome,
+        prazo: freteSelecionado.prazo,
+        valor: freteSelecionado.valor
+      } : { servico: 'Frete fixo', prazo: '7-12 dias úteis', valor: freteValor },
       total: total,
       status: 'aguardando_pagamento',
+
       enderecoEntrega: {
         apelido: endereco.apelido,
         cep: endereco.cep,

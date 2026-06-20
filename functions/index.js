@@ -22,6 +22,8 @@ const db = admin.firestore();
 const ASAAS_API_KEY = defineSecret("ASAAS_API_KEY");
 const SEED_KEY = defineSecret("SEED_KEY");
 const MELHOR_ENVIO_TOKEN = defineSecret("MELHOR_ENVIO_TOKEN");
+const RESEND_API_KEY = defineSecret("RESEND_API_KEY");
+
 
 // ============================================
 // ASASS — GERAR COBRANÇA
@@ -387,3 +389,220 @@ exports.calcularFrete = onRequest(
     }
   }
 );
+
+// ============================================
+// RESEND — ENVIAR EMAIL (função auxiliar)
+// ============================================
+async function enviarEmail({ para, assunto, html }) {
+  const apiKey = RESEND_API_KEY.value();
+  if (!apiKey) {
+    logger.warn("RESEND_API_KEY não configurada. Email não enviado.");
+    return null;
+  }
+
+  try {
+    const response = await axios.post(
+      "https://api.resend.com/emails",
+      {
+        from: "ATTOS2 <contato@attos2.com.br>",
+        to: para,
+        subject: assunto,
+        html: html
+      },
+      {
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+    logger.info(`Email enviado para ${para}: ${assunto} (ID: ${response.data?.id})`);
+    return response.data;
+  } catch (err) {
+    logger.error("Erro ao enviar email via Resend:", err.response?.data || err.message);
+    return null;
+  }
+}
+
+// ============================================
+// EMAIL — BOAS-VINDAS (disparado ao criar cliente)
+// ============================================
+// Trigger: onCreate /clientes/{clienteId}
+exports.onNewCliente = onDocumentCreated(
+  { document: "clientes/{clienteId}", secrets: [RESEND_API_KEY] },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    const cliente = snap.data();
+    const email = cliente.email || snap.id;
+
+    if (!email) {
+      logger.warn("Cliente sem email, pulando boas-vindas.");
+      return;
+    }
+
+    const nome = cliente.nome || "Cliente";
+
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#050505;color:#fff;padding:40px 32px;border-radius:12px">
+        <div style="text-align:center;margin-bottom:32px">
+          <img src="https://attos2-c2644.web.app/logo2.png" alt="ATTOS2" style="height:48px;opacity:0.9">
+        </div>
+        <h1 style="color:#D4AF37;font-size:1.4rem;letter-spacing:2px;font-weight:400;text-align:center;margin-bottom:8px">
+          Bem-vindo à <em style="font-style:italic">ATTOS2</em>!
+        </h1>
+        <p style="color:rgba(255,255,255,0.7);font-size:0.9rem;line-height:1.6;text-align:center;margin-bottom:24px">
+          Olá <strong style="color:#fff">${nome}</strong>,<br><br>
+          É com muita alegria que recebemos você em nossa loja.<br>
+          Aqui cada peça é mais que uma roupa — é uma declaração de fé.
+        </p>
+        <div style="background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.2);border-radius:10px;padding:20px;margin-bottom:24px;text-align:center">
+          <p style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin-bottom:8px;font-style:italic">
+            "E todos foram cheios do Espírito Santo"
+          </p>
+          <p style="font-size:0.65rem;color:var(--gold);letter-spacing:2px">ATOS 2:4</p>
+        </div>
+        <div style="text-align:center">
+          <a href="https://attos2-c2644.web.app/pages/produtos.html" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#D4AF37,#FFD700);border-radius:10px;color:#050505;font-size:0.75rem;letter-spacing:2px;text-transform:uppercase;font-weight:700;text-decoration:none">
+            Conhecer a Loja
+          </a>
+        </div>
+        <p style="color:rgba(255,255,255,0.3);font-size:0.6rem;text-align:center;margin-top:32px;letter-spacing:1px">
+          ATTOS² — Vestindo a Chama do Espírito
+        </p>
+      </div>
+    `;
+
+    await enviarEmail({
+      para: email,
+      assunto: "Bem-vindo à ATTOS2! 🙏",
+      html
+    });
+  }
+);
+
+// ============================================
+// EMAIL — NOTIFICAÇÃO DE PEDIDO (disparado ao atualizar pedido)
+// ============================================
+// Trigger: onUpdate /pedidos/{pedidoId}
+exports.onPedidoAtualizado = onDocumentUpdated(
+  { document: "pedidos/{pedidoId}", secrets: [RESEND_API_KEY] },
+  async (event) => {
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+
+    if (!before || !after) return;
+
+    const statusAntes = before.status;
+    const statusDepois = after.status;
+
+    // Só enviar email se o status mudou
+    if (statusAntes === statusDepois) return;
+
+    const email = after.clienteEmail;
+    const nome = after.clienteNome || "Cliente";
+    const pedidoId = event.params.pedidoId;
+    const total = after.total || 0;
+    const freteInfo = after.freteInfo || {};
+    const codigoRastreio = after.codigoRastreio || "";
+
+    if (!email) {
+      logger.warn(`Pedido ${pedidoId} sem email do cliente, pulando notificação.`);
+      return;
+    }
+
+    let assunto, html;
+
+    if (statusDepois === "pago") {
+      assunto = `Pedido #${pedidoId.substring(0, 8)} confirmado! ✅`;
+      html = `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#050505;color:#fff;padding:40px 32px;border-radius:12px">
+          <div style="text-align:center;margin-bottom:32px">
+            <img src="https://attos2-c2644.web.app/logo2.png" alt="ATTOS2" style="height:48px;opacity:0.9">
+          </div>
+          <h1 style="color:#4CAF50;font-size:1.4rem;letter-spacing:2px;font-weight:400;text-align:center;margin-bottom:8px">
+            Pagamento Confirmado! 🎉
+          </h1>
+          <p style="color:rgba(255,255,255,0.7);font-size:0.9rem;line-height:1.6;text-align:center;margin-bottom:24px">
+            Olá <strong style="color:#fff">${nome}</strong>,<br><br>
+            O pagamento do seu pedido <strong>#${pedidoId.substring(0, 8)}</strong> foi confirmado com sucesso!
+          </p>
+          <div style="background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.2);border-radius:10px;padding:20px;margin-bottom:24px">
+            <p style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin-bottom:4px">Total pago: <strong style="color:#D4AF37;font-size:1rem">R$ ${total.toFixed(2).replace('.',',')}</strong></p>
+            ${freteInfo.servico ? `<p style="font-size:0.75rem;color:rgba(255,255,255,0.5)">Frete: ${freteInfo.servico} • ${freteInfo.prazo || ''}</p>` : ''}
+          </div>
+          <div style="text-align:center">
+            <a href="https://attos2-c2644.web.app/pages/pedidos.html" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#D4AF37,#FFD700);border-radius:10px;color:#050505;font-size:0.75rem;letter-spacing:2px;text-transform:uppercase;font-weight:700;text-decoration:none">
+              Acompanhar Pedido
+            </a>
+          </div>
+          <p style="color:rgba(255,255,255,0.3);font-size:0.6rem;text-align:center;margin-top:32px;letter-spacing:1px">
+            ATTOS² — Vestindo a Chama do Espírito
+          </p>
+        </div>
+      `;
+    } else if (statusDepois === "enviado") {
+      assunto = `Pedido #${pedidoId.substring(0, 8)} enviado! 📦`;
+      html = `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#050505;color:#fff;padding:40px 32px;border-radius:12px">
+          <div style="text-align:center;margin-bottom:32px">
+            <img src="https://attos2-c2644.web.app/logo2.png" alt="ATTOS2" style="height:48px;opacity:0.9">
+          </div>
+          <h1 style="color:#2196F3;font-size:1.4rem;letter-spacing:2px;font-weight:400;text-align:center;margin-bottom:8px">
+            Pedido Enviado! 🚚
+          </h1>
+          <p style="color:rgba(255,255,255,0.7);font-size:0.9rem;line-height:1.6;text-align:center;margin-bottom:24px">
+            Olá <strong style="color:#fff">${nome}</strong>,<br><br>
+            Seu pedido <strong>#${pedidoId.substring(0, 8)}</strong> foi enviado!
+          </p>
+          ${codigoRastreio ? `
+          <div style="background:rgba(33,150,243,0.06);border:1px solid rgba(33,150,243,0.2);border-radius:10px;padding:20px;margin-bottom:24px;text-align:center">
+            <p style="font-size:0.7rem;color:rgba(255,255,255,0.5);letter-spacing:1px;margin-bottom:4px">CÓDIGO DE RASTREIO</p>
+            <p style="font-size:1.1rem;color:#2196F3;font-weight:700;letter-spacing:2px">${codigoRastreio}</p>
+          </div>
+          ` : ''}
+          <div style="text-align:center">
+            <a href="https://attos2-c2644.web.app/pages/pedidos.html" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#D4AF37,#FFD700);border-radius:10px;color:#050505;font-size:0.75rem;letter-spacing:2px;text-transform:uppercase;font-weight:700;text-decoration:none">
+              Rastrear Pedido
+            </a>
+          </div>
+          <p style="color:rgba(255,255,255,0.3);font-size:0.6rem;text-align:center;margin-top:32px;letter-spacing:1px">
+            ATTOS² — Vestindo a Chama do Espírito
+          </p>
+        </div>
+      `;
+    } else if (statusDepois === "cancelado") {
+      assunto = `Pedido #${pedidoId.substring(0, 8)} cancelado`;
+      html = `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#050505;color:#fff;padding:40px 32px;border-radius:12px">
+          <div style="text-align:center;margin-bottom:32px">
+            <img src="https://attos2-c2644.web.app/logo2.png" alt="ATTOS2" style="height:48px;opacity:0.9">
+          </div>
+          <h1 style="color:#f44336;font-size:1.4rem;letter-spacing:2px;font-weight:400;text-align:center;margin-bottom:8px">
+            Pedido Cancelado
+          </h1>
+          <p style="color:rgba(255,255,255,0.7);font-size:0.9rem;line-height:1.6;text-align:center;margin-bottom:24px">
+            Olá <strong style="color:#fff">${nome}</strong>,<br><br>
+            O pedido <strong>#${pedidoId.substring(0, 8)}</strong> foi cancelado.<br>
+            Se houver cobrança, o valor será estornado conforme a política da loja.
+          </p>
+          <div style="text-align:center">
+            <a href="https://attos2-c2644.web.app/pages/produtos.html" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#D4AF37,#FFD700);border-radius:10px;color:#050505;font-size:0.75rem;letter-spacing:2px;text-transform:uppercase;font-weight:700;text-decoration:none">
+              Continuar Comprando
+            </a>
+          </div>
+          <p style="color:rgba(255,255,255,0.3);font-size:0.6rem;text-align:center;margin-top:32px;letter-spacing:1px">
+            ATTOS² — Vestindo a Chama do Espírito
+          </p>
+        </div>
+      `;
+    } else {
+      return; // Não enviar email para outros status
+    }
+
+    await enviarEmail({ para: email, assunto, html });
+  }
+);
+
+

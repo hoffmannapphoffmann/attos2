@@ -20,16 +20,17 @@
 | Carrinho | 🔧 Em correção | Bugs de validação de estoque e race condition sendo corrigidos — ver PROGRESSO.md |
 | Página de Produtos | ✅ Completo | Catálogo com filtros, busca, grid dinâmico |
 | Detalhe do Produto | ✅ Completo | Arquivo: `pages/produto-detalhe.html` com seleção de corte/tamanho e estoque por combinação |
-| Checkout (endereço + frete) | ✅ Completo (frete simulado) | Frete ainda é tabela fixa por estado, não Melhor Envio real |
+| Checkout (endereço + frete) | ✅ Completo (frete real) | Frete via Melhor Envio API real, com fallback para frete fixo |
 | Meus Pedidos | ✅ Completo | Histórico com status e rastreio |
 | Painel Admin | ✅ Completo | Dashboard, CRUD produtos, pedidos, cupons, config, auditoria — ver `pages/admin/*` |
 | Sistema de Auditoria | ✅ Completo | `js/audit.js`, já em uso no admin |
 | Cloud Functions (pagamento) | ✅ Completo | `gerarCobranca`, `webhookAsaas` em `functions/index.js` |
-| Cloud Functions (estoque/reserva) | 🔧 Em andamento | Reserva transacional + expiração de pedidos — ver PROGRESSO.md |
-| Perfil do Cliente | ❌ Não iniciado | Confirmado ausente |
-| Integração Melhor Envio | ❌ Não iniciado | Confirmado ausente (frete simulado) |
+| Cloud Functions (frete) | ✅ Completo | `calcularFrete` via Melhor Envio API |
+| Cloud Functions (emails) | ✅ Completo | `onNewCliente` (boas-vindas), `onPedidoAtualizado` (confirmação/rastreio) via Resend |
+| Perfil do Cliente | ✅ Completo | `pages/perfil.html` com dados pessoais, endereços e pedidos recentes |
+| Integração Melhor Envio | ✅ Completo | Cloud Function `calcularFrete` com token via secret |
 | Integração Asaas | ✅ Completo (PIX e cartão) | Falta apenas testar em ambiente sandbox antes de produção |
-| Integração Resend (emails) | ❌ Não iniciado | Confirmado ausente |
+| Integração Resend (emails) | ✅ Completo | `onNewCliente` + `onPedidoAtualizado` com templates HTML |
 
 ---
 
@@ -88,7 +89,9 @@
 ### 6. Checkout (pages/checkout.html)
 - [x] Selecionar endereço salvo ou adicionar novo
 - [x] Formulário de endereço (CEP, logradouro, bairro, cidade, estado)
-- [x] Cálculo de frete simulado por estado (Melhor Envio futuro)
+- [x] Cálculo de frete real via Melhor Envio API (Cloud Function)
+- [x] Múltiplas opções de frete com seleção
+- [x] Fallback para frete fixo em caso de erro
 - [x] Resumo do pedido antes de confirmar
 - [x] Gerar pedido no Firestore com status "aguardando_pagamento"
 - [x] Carrinho redireciona para checkout
@@ -117,23 +120,20 @@
 - [x] Gerenciamento de outros admins
 - [x] Log de auditoria de todas as ações
 
----
+### 10. Perfil do Cliente (pages/perfil.html)
+- [x] Dados pessoais (nome, email, telefone)
+- [x] Endereços salvos (múltiplos) com CRUD
+- [x] Busca de CEP automática (ViaCEP)
+- [x] Histórico de pedidos recentes
+- [x] Proteção de login
 
-## 🔧 PRÓXIMAS ETAPAS
-
-### Fase 3 — Perfil do Cliente
-- [ ] Criar `pages/perfil.html`
-- [ ] Dados pessoais (nome, email, telefone)
-- [ ] Endereços salvos (múltiplos)
-- [ ] Histórico de pedidos
-
-### Fase 4 — Cloud Functions restantes
-- [ ] `onCreate` cliente → email de boas-vindas (Resend)
-- [ ] `onUpdate` pedido → email de confirmação/rastreio
-
-### Fase 5 — Integrações restantes
-- [ ] Melhor Envio (cálculo de frete real)
-- [ ] Resend (emails transacionais)
+### 11. Cloud Functions
+- [x] `gerarCobranca` — Gera cobrança no Asaas (PIX e cartão)
+- [x] `webhookAsaas` — Recebe confirmação de pagamento e baixa estoque
+- [x] `seed` — Popula banco com produtos de teste (protegido por SEED_KEY)
+- [x] `calcularFrete` — Calcula frete via Melhor Envio API
+- [x] `onNewCliente` — Email de boas-vindas via Resend
+- [x] `onPedidoAtualizado` — Email de confirmação/rastreio/cancelamento via Resend
 
 ---
 
@@ -149,9 +149,9 @@ Home → Produtos → [Detalhe do Produto] → Adicionar ao carrinho
         → Status: aguardando_pagamento
         → Cliente paga via Asaas (Pix, boleto ou cartão)
         → Webhook Asaas confirma → status "pago"
-        → Email de confirmação
+        → Email de confirmação (Resend)
         → Lojista envia + código rastreio
-        → Email de rastreio
+        → Email de rastreio (Resend)
         → Cliente acompanha no histórico
 ```
 
@@ -242,7 +242,7 @@ Cada produto pode ter **múltiplos cortes/modelagens**, e cada corte tem seus pr
 | Checkout | `pages/checkout.html` | ✅ |
 | Meus Pedidos | `pages/pedidos.html` | ✅ |
 | Detalhe do Produto | `pages/produto-detalhe.html` | ✅ |
-| Perfil do Cliente | `pages/perfil.html` | ❌ |
+| Perfil do Cliente | `pages/perfil.html` | ✅ |
 | Painel Admin | `pages/admin/index.html` | ✅ |
 | Admin - Produtos | `pages/admin/produtos.html` | ✅ |
 | Admin - Pedidos | `pages/admin/pedidos.html` | ✅ |
@@ -263,7 +263,7 @@ Cada produto pode ter **múltiplos cortes/modelagens**, e cada corte tem seus pr
 
 - **Música:** Gabriela Rocha - Atos 2 (toca na Home)
 - **Pagamento:** Asaas (Pix, boleto, cartão) — já implementado (PIX e cartão), falta testar em sandbox
-- **Frete:** Melhor Envio (API gratuita) — a integrar
-- **Emails:** Resend (3.000/mês grátis) — a integrar
+- **Frete:** Melhor Envio (API gratuita) — já integrado via Cloud Function
+- **Emails:** Resend (3.000/mês grátis) — já integrado (boas-vindas + notificações de pedido)
 - **Manutenção:** 1 camiseta/mês (ajustes, correções, suporte)
 - **Custo fixo mensal:** R$ 3,33 (domínio)

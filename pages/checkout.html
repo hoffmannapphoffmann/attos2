@@ -705,11 +705,27 @@ async function carregarDados(user) {
       return;
     }
 
-    // Carregar endereços do cliente
+    // Carregar dados do cliente
     const doc = await db.collection('clientes').doc(user.uid).get();
     if (doc.exists) {
       clienteDoc = doc.data();
       enderecos = clienteDoc.enderecos || [];
+
+      // Preencher CPF e telefone automaticamente se existirem no cadastro
+      if (clienteDoc.cpf) {
+        const cpfInput = document.getElementById('cpfCliente');
+        let val = clienteDoc.cpf.replace(/\D/g, '');
+        if (val.length === 11) {
+          cpfInput.value = val.substring(0,3) + '.' + val.substring(3,6) + '.' + val.substring(6,9) + '-' + val.substring(9);
+        }
+      }
+      if (clienteDoc.telefone) {
+        const telInput = document.getElementById('telCliente');
+        let val = clienteDoc.telefone.replace(/\D/g, '');
+        if (val.length >= 10) {
+          telInput.value = '(' + val.substring(0,2) + ') ' + val.substring(2, val.length === 11 ? 7 : 6) + '-' + val.substring(val.length === 11 ? 7 : 6);
+        }
+      }
     }
 
     renderizarEnderecos();

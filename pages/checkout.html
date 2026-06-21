@@ -1322,6 +1322,27 @@ async function confirmarPedido() {
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
+    // Salvar CPF e telefone no perfil do cliente (se não existirem ainda)
+    const dadosAtualizar = {};
+    if (!clienteDoc?.cpf && cpf.replace(/\D/g, '').length === 11) {
+      dadosAtualizar.cpf = cpf;
+    }
+    if (!clienteDoc?.telefone && telefone) {
+      dadosAtualizar.telefone = telefone;
+    }
+    if (Object.keys(dadosAtualizar).length > 0) {
+      try {
+        await db.collection('clientes').doc(user.uid).update(dadosAtualizar);
+        // Atualizar clienteDoc local
+        if (clienteDoc) {
+          clienteDoc.cpf = dadosAtualizar.cpf || clienteDoc.cpf;
+          clienteDoc.telefone = dadosAtualizar.telefone || clienteDoc.telefone;
+        }
+      } catch (err) {
+        console.warn('Erro ao salvar dados no perfil:', err);
+      }
+    }
+
     // Salvar pedido no Firestore
     const pedidoRef = await db.collection('pedidos').add(pedido);
     const pedidoId = pedidoRef.id;

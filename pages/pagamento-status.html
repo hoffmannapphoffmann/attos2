@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATTOS2 — Status do Pagamento</title>
+<meta name="description" content="Acompanhe o status do seu pagamento ATTOS2.">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<link rel="icon" type="image/png" href="../logo2.png">
+<link rel="shortcut icon" href="../logo2.png">
+<link rel="stylesheet" href="../css/style.css">
+<script src="../js/navbar.js"></script>
+<style>
+:root {
+  --gold: #D4AF37; --gold2: #FFD700;
+  --bg: #050505; --card-bg: rgba(255,255,255,0.03);
+  --border: rgba(212,175,55,0.15);
+  --text: rgba(255,255,255,0.85); --text-muted: rgba(255,255,255,0.4);
+  --success: #4CAF50; --error: #f44336; --warning: #FF9800;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: Arial, sans-serif; min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 20px;
+}
+body::before {
+  content: ''; position: fixed; inset: 0;
+  background: radial-gradient(ellipse at 20% 50%, rgba(212,175,55,0.03) 0%, transparent 50%),
+              radial-gradient(ellipse at 80% 50%, rgba(255,69,0,0.02) 0%, transparent 50%);
+  pointer-events: none; z-index: 0;
+}
+.status-card {
+  position: relative; z-index: 1;
+  max-width: 480px; width: 100%;
+  background: var(--card-bg); backdrop-filter: blur(20px);
+  border: 1px solid var(--border); border-radius: 16px;
+  padding: 48px 32px; text-align: center;
+}
+.status-icon { font-size: 5rem; margin-bottom: 20px; }
+.status-card h1 { font-size: 1.6rem; letter-spacing: 3px; font-weight: 400; margin-bottom: 12px; }
+.status-card p { color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; margin-bottom: 24px; }
+.status-card .pedido-info {
+  background: rgba(212,175,55,0.06); border: 1px solid rgba(212,175,55,0.2);
+  border-radius: 10px; padding: 16px; margin-bottom: 24px; text-align: left;
+}
+.status-card .pedido-info .label { font-size: 0.65rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); }
+.status-card .pedido-info .value { font-size: 1rem; color: var(--text); margin-bottom: 8px; }
+.btn-sync {
+  display: inline-block; padding: 14px 32px;
+  background: linear-gradient(135deg, var(--gold), var(--gold2));
+  border: none; border-radius: 10px;
+  color: #050505; font-size: 0.75rem; letter-spacing: 2px;
+  text-transform: uppercase; font-weight: 700;
+  cursor: pointer; text-decoration: none;
+  margin-top: 12px;
+}
+.btn-outline {
+  display: inline-block; padding: 12px 28px;
+  background: transparent; border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text);
+  font-size: 0.7rem; letter-spacing: 2px;
+  text-transform: uppercase; cursor: pointer; text-decoration: none;
+  margin-top: 8px;
+}
+.spinner {
+  display: inline-block; width: 32px; height: 32px;
+  border: 2px solid rgba(212,175,55,0.2); border-top-color: var(--gold);
+  border-radius: 50%; animation: spin 0.6s linear infinite;
+  margin-bottom: 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Responsivo */
+@media (max-width: 480px) {
+  .status-card { padding: 32px 20px; }
+  .status-card h1 { font-size: 1.2rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="status-card" id="statusCard">
+  <div id="statusContent">
+    <div class="spinner"></div>
+    <p style="color:var(--text-muted);font-size:0.85rem;letter-spacing:1px">Carregando...</p>
+  </div>
+</div>
+
+<script>
+// ============================================
+// FIREBASE
+// ============================================
+firebase.initializeApp({
+  apiKey: "AIzaSyBVXuBi31G9pfviNGUY6uZ_1cFudKthmU0",
+  authDomain: "attos2-c2644.firebaseapp.com",
+  projectId: "attos2-c2644",
+  storageBucket: "attos2-c2644.firebasestorage.app",
+  messagingSenderId: "1021391388902",
+  appId: "1:1021391388902:web:b349b39a74994569bebb27",
+  measurementId: "G-WQYHW5DPBC"
+});
+var db = firebase.firestore();
+
+// ============================================
+// LER PEDIDO DA URL
+// ============================================
+var params = new URLSearchParams(window.location.search);
+var pedidoId = params.get('id');
+
+if (!pedidoId) {
+  document.getElementById('statusContent').innerHTML = `
+    <div style="font-size:3rem;opacity:0.3;margin-bottom:12px"><i class="ti ti-mood-sad"></i></div>
+    <h1 style="color:var(--text-muted)">Pedido não encontrado</h1>
+    <p>Informe o ID do pedido na URL (?id=xxx).</p>
+    <a href="../index.html" class="btn-sync">Voltar à Loja</a>
+  `;
+} else {
+  verificarStatus();
+}
+
+// ============================================
+// VERIFICAR STATUS VIA FIRESTORE
+// ============================================
+async function verificarStatus() {
+  var container = document.getElementById('statusContent');
+
+  try {
+    var doc = await db.collection('pedidos').doc(pedidoId).get();
+
+    if (!doc.exists) {
+      container.innerHTML = `
+        <div style="font-size:3rem;opacity:0.3;margin-bottom:12px"><i class="ti ti-mood-sad"></i></div>
+        <h1 style="color:var(--text-muted)">Pedido não encontrado</h1>
+        <p>Verifique o ID do pedido e tente novamente.</p>
+        <a href="../index.html" class="btn-sync">Voltar à Loja</a>
+      `;
+      return;
+    }
+
+    var pedido = doc.data();
+    renderizarStatus(pedido);
+
+    // Se ainda está aguardando, iniciar polling
+    if (pedido.status === 'aguardando_pagamento') {
+      iniciarPolling(pedido);
+    }
+
+  } catch (err) {
+    container.innerHTML = `
+      <div style="font-size:3rem;opacity:0.3;margin-bottom:12px"><i class="ti ti-cloud-off"></i></div>
+      <h1 style="color:var(--text-muted)">Erro ao carregar</h1>
+      <p>Não foi possível verificar o status do pedido.</p>
+      <a href="javascript:verificarStatus()" class="btn-sync">Tentar novamente</a>
+    `;
+  }
+}
+
+// ============================================
+// RENDERIZAR STATUS
+// ============================================
+function renderizarStatus(pedido) {
+  var container = document.getElementById('statusContent');
+  var status = pedido.status;
+  var id = pedidoId.substring(0, 8);
+  var total = (pedido.total || 0).toFixed(2).replace('.',',');
+  var data = pedido.createdAt ? new Date(pedido.createdAt.seconds * 1000).toLocaleDateString('pt-BR') : '';
+
+  if (status === 'pago') {
+    container.innerHTML = `
+      <div class="status-icon" style="color:#4CAF50"><i class="ti ti-circle-check"></i></div>
+      <h1>Pagamento Confirmado!</h1>
+      <p>Seu pagamento foi aprovado e o pedido será processado em breve.</p>
+      <div class="pedido-info">
+        <div class="label">Pedido</div><div class="value">#${id}</div>
+        <div class="label">Data</div><div class="value">${data}</div>
+        <div class="label">Total</div><div class="value" style="color:var(--gold);font-weight:700">R$ ${total}</div>
+      </div>
+      <a href="pedidos.html" class="btn-sync">Meus Pedidos</a>
+      <br><a href="../index.html" class="btn-outline">Voltar à Loja</a>
+    `;
+  } else if (status === 'enviado') {
+    container.innerHTML = `
+      <div class="status-icon" style="color:#2196F3"><i class="ti ti-truck-delivery"></i></div>
+      <h1>Pedido Enviado!</h1>
+      <p>Seu pedido foi enviado${pedido.codigoRastreio ? ' com o código de rastreio abaixo' : ''}.</p>
+      <div class="pedido-info">
+        <div class="label">Pedido</div><div class="value">#${id}</div>
+        <div class="label">Data</div><div class="value">${data}</div>
+        ${pedido.codigoRastreio ? '<div class="label">Rastreio</div><div class="value" style="color:#2196F3;font-weight:700">' + pedido.codigoRastreio + '</div>' : ''}
+        <div class="label">Total</div><div class="value" style="color:var(--gold);font-weight:700">R$ ${total}</div>
+      </div>
+      <a href="pedidos.html" class="btn-sync">Meus Pedidos</a>
+    `;
+  } else if (status === 'expirado') {
+    container.innerHTML = `
+      <div class="status-icon" style="color:var(--warning)"><i class="ti ti-clock"></i></div>
+      <h1>Pagamento Expirado</h1>
+      <p>O prazo para pagamento deste pedido expirou. Caso deseje, faça um novo pedido.</p>
+      <div class="pedido-info">
+        <div class="label">Pedido</div><div class="value">#${id}</div>
+        <div class="label">Data</div><div class="value">${data}</div>
+        <div class="label">Total</div><div class="value" style="color:var(--gold);font-weight:700">R$ ${total}</div>
+      </div>
+      <a href="produtos.html" class="btn-sync">Ver Produtos</a>
+      <br><a href="../index.html" class="btn-outline">Voltar à Loja</a>
+    `;
+  } else if (status === 'cancelado') {
+    container.innerHTML = `
+      <div class="status-icon" style="color:var(--error)"><i class="ti ti-circle-x"></i></div>
+      <h1>Pedido Cancelado</h1>
+      <p>Este pedido foi cancelado. Se houver cobrança, o valor será estornado.</p>
+      <div class="pedido-info">
+        <div class="label">Pedido</div><div class="value">#${id}</div>
+        <div class="label">Data</div><div class="value">${data}</div>
+        <div class="label">Total</div><div class="value" style="color:var(--gold);font-weight:700">R$ ${total}</div>
+      </div>
+      <a href="produtos.html" class="btn-sync">Ver Produtos</a>
+      <br><a href="../index.html" class="btn-outline">Voltar à Loja</a>
+    `;
+  } else {
+    // aguardando_pagamento
+    container.innerHTML = `
+      <div class="spinner"></div>
+      <h1>Aguardando Pagamento</h1>
+      <p>Seu pedido foi registrado e está aguardando a confirmação do pagamento.</p>
+      <div class="pedido-info">
+        <div class="label">Pedido</div><div class="value">#${id}</div>
+        <div class="label">Data</div><div class="value">${data}</div>
+        <div class="label">Total</div><div class="value" style="color:var(--gold);font-weight:700">R$ ${total}</div>
+        <div class="label">Status</div><div class="value" id="pollingLabel" style="color:var(--warning);font-size:0.85rem">Verificando a cada 5 segundos...</div>
+      </div>
+      <a href="pedidos.html" class="btn-outline">Meus Pedidos</a>
+    `;
+  }
+}
+
+// ============================================
+// POLLING (se ainda aguardando pagamento)
+// ============================================
+function iniciarPolling(pedidoInicial) {
+  var tentativas = 0;
+  var maxTentativas = 180; // 15 minutos
+
+  var pollingId = setInterval(async function() {
+    tentativas++;
+    try {
+      var doc = await db.collection('pedidos').doc(pedidoId).get();
+      if (doc.exists) {
+        var pedido = doc.data();
+        if (pedido.status !== 'aguardando_pagamento' || tentativas >= maxTentativas) {
+          clearInterval(pollingId);
+          renderizarStatus(pedido);
+        } else {
+          var label = document.getElementById('pollingLabel');
+          if (label) label.textContent = 'Verificando a cada 5 segundos... (' + tentativas + 's)';
+        }
+      }
+    } catch(e) {
+      // Silencioso — próxima tentativa em 5s
+    }
+  }, 5000);
+}
+</script>
+
+</body>
+</html>

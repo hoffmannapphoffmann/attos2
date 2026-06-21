@@ -1498,7 +1498,7 @@ async function confirmarPedido() {
     document.getElementById('checkoutLayout').style.display = 'none';
     document.getElementById('checkoutSuccess').style.display = 'flex';
 
-    // Se for PIX, mostrar QR Code
+    // Se for PIX, mostrar QR Code com polling automático
     if (metodoPagamento === 'PIX' && result.pixQrCode) {
       document.querySelector('#checkoutSuccess .success-icon').innerHTML = `
         <div style="background:#fff;border-radius:12px;padding:16px;display:inline-block">
@@ -1512,8 +1512,34 @@ async function confirmarPedido() {
           style="width:90%;max-width:400px;padding:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:0.7rem;text-align:center"
           onclick="this.select();document.execCommand('copy');alert('Código PIX copiado!')">
         <br><br>
-        <span style="font-size:0.7rem;color:var(--text-muted)">O pedido será confirmado automaticamente após o pagamento.</span>
+        <span style="font-size:0.7rem;color:var(--text-muted)" id="pollingStatus">Aguardando pagamento...</span>
+        <br><br>
+        <a href="pagamento-status.html?id=${pedidoId}" style="font-size:0.65rem;color:var(--gold);letter-spacing:1px;text-decoration:none">Acompanhar status do pedido</a>
       `;
+
+      // Iniciar polling de confirmação
+      var tentativas = 0;
+      var maxTentativas = 180; // 15 minutos (5s * 180 = 900s)
+      var pollingId = setInterval(async function() {
+        tentativas++;
+        try {
+          var doc = await db.collection('pedidos').doc(pedidoId).get();
+          if (doc.exists && doc.data().status === 'pago') {
+            clearInterval(pollingId);
+            // Substituir tela por confirmação
+            document.querySelector('#checkoutSuccess .success-icon').innerHTML = '<div style="font-size:4rem;color:#4CAF50"><i class="ti ti-circle-check"></i></div>';
+            document.querySelector('#checkoutSuccess h2').textContent = 'Pagamento Confirmado!';
+            document.querySelector('#checkoutSuccess p').innerHTML = 'Seu pagamento foi aprovado!<br><br><span style="font-size:0.7rem;color:var(--text-muted)">O pedido será processado em breve.</span><br><br><a href="pedidos.html" class="btn-pedidos" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;border-radius:10px;color:#050505;font-size:0.75rem;letter-spacing:2px;text-transform:uppercase;font-weight:700;cursor:pointer;text-decoration:none">Meus Pedidos</a>';
+          } else if (tentativas >= maxTentativas) {
+            clearInterval(pollingId);
+            document.querySelector('#checkoutSuccess .success-icon').innerHTML = '<div style="font-size:3rem;opacity:0.5"><i class="ti ti-clock"></i></div>';
+            document.querySelector('#checkoutSuccess h2').textContent = 'QR Code expirado';
+            document.querySelector('#checkoutSuccess p').innerHTML = 'O QR Code PIX expirou após 15 minutos.<br><br>Caso já tenha pago, acompanhe em Meus Pedidos.<br><br><a href="pedidos.html" class="btn-pedidos" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;border-radius:10px;color:#050505;font-size:0.75rem;letter-spacing:2px;text-transform:uppercase;font-weight:700;cursor:pointer;text-decoration:none">Meus Pedidos</a>';
+          } else {
+            document.getElementById('pollingStatus').textContent = 'Aguardando pagamento... (' + tentativas + 's)';
+          }
+        } catch(e) {}
+      }, 5000);
     } else if (metodoPagamento === 'CREDIT_CARD' && result.invoiceUrl) {
       document.querySelector('#checkoutSuccess .success-icon').innerHTML = `
         <div style="font-size:3rem;color:var(--success)"><i class="ti ti-credit-card"></i></div>

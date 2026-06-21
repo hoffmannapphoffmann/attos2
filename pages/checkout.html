@@ -12,6 +12,12 @@
 <link rel="icon" type="image/png" href="../logo2.png">
 <link rel="shortcut icon" href="../logo2.png">
 <link rel="stylesheet" href="../css/style.css">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+<script src="../js/navbar.js"></script>
+<script src="../js/carrinho.js"></script>
 <style>
 :root {
   --gold: #D4AF37;
@@ -456,11 +462,7 @@ body::before {
 </head>
 <body>
 
-<nav class="checkout-nav">
-  <a href="../index.html">← Voltar</a>
-  <a href="../index.html"><img src="../logo2.png" class="logo-sm" alt="ATTOS2"></a>
-  <a href="carrinho.html">Carrinho</a>
-</nav>
+<!-- NAVBAR UNIVERSAL (inserida via js/navbar.js) -->
 
 <div class="checkout-layout" id="checkoutLayout">
   <!-- LEFT -->
@@ -1142,7 +1144,7 @@ function renderizarResumo() {
 }
 
 function atualizarResumo() {
-  const subtotal = carrinho.reduce((acc, item) => acc + (item.preco * item.quantidade), 0);
+  var subtotal = Carrinho.subtotal();
   const total = subtotal + freteValor;
 
   document.getElementById('resumoSubtotal').textContent = `R$ ${subtotal.toFixed(2).replace('.',',')}`;
@@ -1229,7 +1231,7 @@ function selecionarPagamento(tipo) {
 }
 
 function atualizarParcelas() {
-  const total = carrinho.reduce((acc, item) => acc + (item.preco * item.quantidade), 0) + freteValor;
+  const total = Carrinho.subtotal() + freteValor;
   const select = document.getElementById('parcelasSelect');
   for (let i = 1; i <= 12; i++) {
     const valorParcela = total / i;
@@ -1263,7 +1265,57 @@ async function confirmarPedido() {
   btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px;margin:0 auto"></div>';
 
   try {
-    const subtotal = carrinho.reduce((acc, item) => acc + (item.preco * item.quantidade), 0);
+    // ============================================
+    // REVALIDAR ESTOQUE DE TODOS OS ITENS ANTES DE GERAR COBRANÇA
+    // ============================================
+    var itensSemEstoque = [];
+    var itensValidados = [];
+
+    for (var i = 0; i < carrinho.length; i++) {
+      var itemCarrinho = carrinho[i];
+      try {
+        var docProduto = await db.collection('produtos').doc(itemCarrinho.id).get();
+        if (!docProduto.exists) {
+          itensSemEstoque.push(itemCarrinho.nome + ' (produto removido do catálogo)');
+          continue;
+        }
+        var modelos = docProduto.data().modelos || {};
+        var estoques = modelos[itemCarrinho.corte] || {};
+        var estoqueDisponivel = estoques[itemCarrinho.tamanho] || 0;
+
+        if (estoqueDisponivel <= 0) {
+          itensSemEstoque.push(itemCarrinho.nome + ' (' + itemCarrinho.tamanho + ' / ' + itemCarrinho.corte + ' - esgotado)');
+          continue;
+        }
+
+        if (itemCarrinho.quantidade > estoqueDisponivel) {
+          itensSemEstoque.push(itemCarrinho.nome + ' (' + itemCarrinho.tamanho + ' / ' + itemCarrinho.corte + ': apenas ' + estoqueDisponivel + ' disponíveis, você tem ' + itemCarrinho.quantidade + ' no carrinho)');
+          continue;
+        }
+
+        itensValidados.push({
+          produtoId: itemCarrinho.id,
+          nome: itemCarrinho.nome,
+          quantidade: itemCarrinho.quantidade,
+          preco: itemCarrinho.preco,
+          tamanho: itemCarrinho.tamanho,
+          corte: itemCarrinho.corte,
+          versiculo: itemCarrinho.versiculo || '',
+          imagem: itemCarrinho.imagem || ''
+        });
+      } catch (err) {
+        console.warn('Erro ao validar estoque para ' + itemCarrinho.id + ':', err);
+        itensSemEstoque.push(itemCarrinho.nome + ' (erro ao verificar estoque)');
+      }
+    }
+
+    if (itensSemEstoque.length > 0) {
+      alert('Não foi possível finalizar o pedido. Os seguintes itens têm problemas de estoque:\n\n' + itensSemEstoque.join('\n') + '\n\nRemova ou ajuste as quantidades no carrinho e tente novamente.');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-check" style="margin-right:6px"></i> Confirmar Pedido';
+      return;
+    }
+    const subtotal = Carrinho.subtotal();
     const total = subtotal + freteValor;
     const parcelas = parseInt(document.getElementById('parcelasSelect').value);
 

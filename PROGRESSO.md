@@ -1,9 +1,22 @@
-# PROGRESSO — ATTOS2
+# Progresso — Correção do Carrinho ATTOS2
 
 > Arquivo de acompanhamento de tarefas. Cada entrada registra data, tarefa,
 > comandos rodados e resultado real.
 
+| Tarefa | Status | Teste rodado | Resultado | Data |
+|---|---|---|---|---|
+| 1 — Módulo central | ✅ Concluída | node js/carrinho.test.js | 25/25 passaram | 21/06/2026 |
+| 2 — Validação de estoque (3 entradas) | ⏳ Em andamento | — | — | — |
+| 7 — Substituir .reduce | ✅ Concluída | grep reduce pages/checkout.html | 0 ocorrências; Carrinho.subtotal em 3 locais | 21/06/2026 |
+| 3 — Revalidação no checkout | ⏳ Em andamento | — | — | — |
+| 4 — Reserva transacional + webhook | ⏳ Pendente | — | — | — |
+| 5 — Expiração agendada | ⏳ Pendente | — | — | — |
+| 6 — Limpar carrinho no Firestore | ⏳ Pendente | — | — | — |
+| 8 — Checklist final | ⏳ Pendente | — | — | — |
+
 ---
+
+## Histórico anterior
 
 ## 20/06/2026 — Correção de emails transacionais (Resend)
 

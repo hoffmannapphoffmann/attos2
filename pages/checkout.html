@@ -1490,10 +1490,9 @@ async function confirmarPedido() {
       throw new Error(result.error || 'Erro ao gerar cobrança');
     }
 
-    // Limpar carrinho
-    localStorage.removeItem('attos2_carrinho');
+    // Limpar carrinho (localStorage + Firestore se logado)
+    await Carrinho.limparTudo(db, user);
     carrinho = [];
-    window.dispatchEvent(new CustomEvent('carrinhoAtualizado', { detail: { total: 0 } }));
 
     // Mostrar tela de pagamento
     document.getElementById('checkoutLayout').style.display = 'none';

@@ -48,43 +48,6 @@ body::before {
   z-index: 0;
 }
 
-/* NAVBAR SIMPLES */
-.prod-nav {
-  position: relative;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 32px;
-  border-bottom: 1px solid var(--border);
-}
-.prod-nav a {
-  color: var(--text);
-  text-decoration: none;
-  font-size: 0.75rem;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  transition: color 0.3s;
-}
-.prod-nav a:hover { color: var(--gold); }
-.prod-nav .logo-sm { height: 32px; opacity: 0.8; }
-.prod-nav-right { display: flex; align-items: center; gap: 16px; }
-.prod-nav-right .nav-icon-btn {
-  background: none; border: none; color: var(--text);
-  font-size: 1.2rem; cursor: pointer; padding: 4px;
-  transition: color 0.3s; position: relative;
-}
-.prod-nav-right .nav-icon-btn:hover { color: var(--gold); }
-.cart-badge-nav {
-  position: absolute; top: -4px; right: -6px;
-  background: var(--gold); color: #050505;
-  font-size: 0.55rem; font-weight: 700;
-  min-width: 16px; height: 16px;
-  border-radius: 8px; display: flex;
-  align-items: center; justify-content: center;
-  padding: 0 4px; line-height: 1;
-}
-
 /* LAYOUT */
 .prod-layout {
   position: relative;
@@ -542,7 +505,6 @@ body::before {
 /* RESPONSIVO */
 @media (max-width: 768px) {
   .filter-bar-mobile { display: block; }
-  .prod-nav { padding: 12px 16px; }
   .prod-layout { flex-direction: column; padding: 0 16px 40px; gap: 0; }
   .prod-sidebar { display: none; }
   .prod-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
@@ -560,20 +522,39 @@ body::before {
 }
 .footer-credits{display:flex;align-items:center;gap:16px}
 @media(max-width:768px){.footer-credits{flex-wrap:wrap;justify-content:center;gap:8px}}
+
+/* === DROPDOWN COM SCROLL === */
+.dropdown-items {
+  max-height: 380px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(212,175,55,0.3) transparent;
+}
+.dropdown-items::-webkit-scrollbar {
+  width: 4px;
+}
+.dropdown-items::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dropdown-items::-webkit-scrollbar-thumb {
+  background: rgba(212,175,55,0.3);
+  border-radius: 2px;
+}
+.dropdown-items::-webkit-scrollbar-thumb:hover {
+  background: rgba(212,175,55,0.5);
+}
+.dropdown-loading {
+  padding: 16px;
+  text-align: center;
+  color: rgba(255,255,255,0.4);
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+}
 </style>
 <body>
 
-<nav class="prod-nav">
-  <a href="../index.html">← Voltar</a>
-  <a href="../index.html"><img src="../logo2.png" class="logo-sm" alt="ATTOS2"></a>
-  <div class="prod-nav-right">
-    <a href="carrinho.html" class="nav-icon-btn" aria-label="Carrinho">
-      <i class="ti ti-shopping-cart"></i>
-      <span class="cart-badge-nav" id="cartCountNav">0</span>
-    </a>
-  </div>
-</nav>
-
+<script src="../js/navbar.js"></script>
+<script src="../js/carrinho.js"></script>
 <!-- FILTER BAR MOBILE -->
 <div class="filter-bar-mobile" id="filterBarMobile">
   <div class="filter-bar-row">
@@ -932,52 +913,66 @@ function renderizar() {
 // ============================================
 // ADICIONAR AO CARRINHO (direto do grid)
 // ============================================
-function adicionarAoCarrinho(produtoId) {
-  const produto = todosProdutos.find(p => p.id === produtoId);
-  if (!produto) return;
+function mostrarErro(motivo) {
+  var toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#f44336;color:#fff;padding:12px 24px;border-radius:10px;font-size:0.85rem;z-index:99999;box-shadow:0 8px 30px rgba(244,67,54,0.3);font-family:Arial,sans-serif;text-align:center;max-width:90vw';
+  toast.textContent = motivo;
+  document.body.appendChild(toast);
+  setTimeout(function() { toast.remove(); }, 4000);
+}
 
-  // Encontrar primeiro corte e tamanho disponível
-  const modelos = produto.modelos || {};
-  const cortes = Object.keys(modelos);
-  if (cortes.length === 0) return;
+async function adicionarAoCarrinho(produtoId) {
+  // Buscar estoque real do Firestore (não usa cache em memória)
+  try {
+    var doc = await db.collection('produtos').doc(produtoId).get();
+    if (!doc.exists) {
+      mostrarErro('Produto não encontrado no catálogo.');
+      return;
+    }
+    var data = doc.data();
+    var modelos = data.modelos || {};
+    var cortes = Object.keys(modelos);
+    if (cortes.length === 0) return;
 
-  const primeiroCorte = cortes[0];
-  const estoques = modelos[primeiroCorte] || {};
-  const primeiroTam = Object.keys(estoques).find(t => (estoques[t] || 0) > 0) || 'M';
+    var primeiroCorte = cortes[0];
+    var estoques = modelos[primeiroCorte] || {};
+    var primeiroTam = Object.keys(estoques).find(function(t) { return (estoques[t] || 0) > 0; }) || 'M';
+    var estoqueDisponivel = estoques[primeiroTam] || 0;
 
-  const item = {
-    id: produto.id,
-    nome: produto.nome,
-    preco: produto.preco,
-    versiculo: produto.versiculo || '',
-    imagem: produto.imagemUrl || '',
-    tamanho: primeiroTam,
-    corte: primeiroCorte,
-    quantidade: 1
-  };
+    // Usar módulo Carrinho global
+    var resultado = Carrinho.adicionar({
+      id: produtoId,
+      nome: data.nome,
+      preco: data.preco,
+      versiculo: data.versiculo || '',
+      imagem: data.imagemUrl || '',
+      tamanho: primeiroTam,
+      corte: primeiroCorte,
+      quantidade: 1,
+      estoqueDisponivel: estoqueDisponivel
+    });
 
-  // Salvar no localStorage
-  const saved = localStorage.getItem('attos2_carrinho');
-  const carrinho = saved ? JSON.parse(saved) : [];
-  const idx = carrinho.findIndex(i => i.id === item.id && i.tamanho === item.tamanho && i.corte === item.corte);
-  if (idx >= 0) {
-    carrinho[idx].quantidade += 1;
-  } else {
-    carrinho.push(item);
+    if (!resultado.ok) {
+      mostrarErro(resultado.motivo);
+      return;
+    }
+  } catch (err) {
+    console.warn('Erro ao verificar estoque:', err);
+    mostrarErro('Erro ao verificar estoque. Tente novamente.');
+    return;
   }
-  localStorage.setItem('attos2_carrinho', JSON.stringify(carrinho));
 
   // Atualizar badge
   atualizarBadgeCarrinho();
 
   // Feedback visual
-  const btn = event.target.closest('button');
+  var btn = event.target.closest('button');
   if (btn) {
-    const original = btn.innerHTML;
+    var original = btn.innerHTML;
     btn.innerHTML = '<i class="ti ti-check"></i>';
     btn.style.background = '#4CAF50';
     btn.style.color = '#fff';
-    setTimeout(() => {
+    setTimeout(function() {
       btn.innerHTML = original;
       btn.style.background = '';
       btn.style.color = '';
@@ -986,15 +981,10 @@ function adicionarAoCarrinho(produtoId) {
 }
 
 function atualizarBadgeCarrinho() {
-  const badge = document.getElementById('cartCountNav');
-  const saved = localStorage.getItem('attos2_carrinho');
-  if (saved) {
-    const itens = JSON.parse(saved);
-    const total = itens.reduce((acc, i) => acc + i.quantidade, 0);
-    badge.textContent = total;
-  } else {
-    badge.textContent = '0';
-  }
+  var badge = document.getElementById('cartCountNav') || document.getElementById('cartCount');
+  if (!badge) return;
+  badge.textContent = Carrinho.totalItens();
+  badge.dataset.count = badge.textContent;
 }
 
 // ============================================
@@ -1098,14 +1088,7 @@ document.addEventListener('click', function(e) {
 });
 
 // ============================================
-// AUTH STATE
-// ============================================
-auth.onAuthStateChanged(user => {
-  // Futuro: mostrar nome do usuário no navbar
-});
-
-// ============================================
-// INICIAR
+// INICIAR (navbar.js já cuida dos dropdowns e auth)
 // ============================================
 atualizarBadgeCarrinho();
 carregarProdutos();

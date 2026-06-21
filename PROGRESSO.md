@@ -30,6 +30,45 @@
 3. Eventos configurados: PAYMENT_RECEIVED, PAYMENT_CONFIRMED, PAYMENT_OVERDUE, PAYMENT_REFUNDED
 4. Testado com pedido real — webhook funcionou, status atualizado automaticamente ✅
 
+## 21/06/2026 — Navbar universal v2.0 (completa) implementada em todas as páginas
+
+**Tarefa:** Replicar a navbar completa da home (mega dropdowns, preview, search, música, user menu, carrinho) em todas as páginas via `js/navbar.js`.
+
+**O que foi alterado:**
+1. `js/navbar.js` — reescrito de 84 para ~420 linhas, com 10 funções modulares:
+   - `injetarHTML()`, `setupTablerIcons()`, `setupDropdownPortal()`, `setupPreviewPanel()`, `setupPreviewPortal()`, `setupCartBadge()`, `setupSearchBar()`, `setupUserDropdown()`, `setupAuth()`, `setupMusicPlayer()`
+   - Aguarda `DOMContentLoaded` para injetar no body (corrige bug em subpáginas)
+   - Detecta automaticamente subpasta (`pages/`, `admin/`) e ajusta caminhos
+   - `ensureFirebase()` — evita reinicializar Firebase se a página já o fez
+2. `index.html` — removido ~400 linhas de HTML/CSS/JS da navbar inline, carrega `js/navbar.js`
+3. `pages/produtos.html` — removido navbar inline (~55 linhas), adicionado `<script src="../js/navbar.js">`
+4. Demais páginas já usavam `navbar.js` ✅
+
+**Resultado:** Todas as 8 páginas agora exibem a navbar completa idêntica à home.
+
+## 21/06/2026 — Correção de validação de estoque no carrinho
+
+**Tarefa:** Corrigir bug onde páginas manipulavam o carrinho sem validar estoque real do Firestore.
+
+**Problema:** O módulo `js/carrinho.js` existia com 25 testes passando e validação completa de estoque, mas **nenhuma página o utilizava**. Cada página tinha sua própria implementação inline de `adicionarAoCarrinho()` que:
+- Não validava estoque (permitia adicionar quantidade ilimitada)
+- Não verificava `estoqueDisponivel` (ignorava se o produto estava esgotado)
+- Usava cache em memória (estoque do momento do carregamento da página, não do clique)
+
+**O que foi alterado:**
+1. `pages/carrinho.html` — substituiu funções inline por chamadas ao módulo `Carrinho`:
+   - Adicionado `<script src="../js/carrinho.js">`
+   - `alterarQtd()` agora busca estoque real do Firestore via `await db.collection('produtos').doc(id).get()` antes de incrementar
+   - Toast de erro visível (`mostrarErro()`) quando `{ ok: false }` — não falha silenciosamente
+2. `pages/produto-detalhe.html` — mesma correção:
+   - Adicionado `<script src="../js/carrinho.js">`
+   - `adicionarAoCarrinho()` agora busca estoque do Firestore no momento do clique e chama `Carrinho.adicionar()`
+3. `pages/produtos.html` — mesma correção:
+   - Adicionado `<script src="../js/carrinho.js">`
+   - `adicionarAoCarrinho()` usa `Carrinho.adicionar()` com validação e toast de erro
+
+**Testes:** `node js/carrinho.test.js` — 25/25 passando ✅
+
 ## 20/06/2026 — Atualização do PROJETO_EXECUCAO.md
 
 **Tarefa:** Sincronizar `PROJETO_EXECUCAO.md` com o código real do repositório.

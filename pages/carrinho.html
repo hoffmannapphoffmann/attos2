@@ -9,6 +9,13 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../logo2.png">
+<link rel="shortcut icon" href="../logo2.png">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+<script src="../js/navbar.js"></script>
 <style>
 :root {
   --gold: #D4AF37;
@@ -294,11 +301,7 @@ body::before {
 </head>
 <body>
 
-<nav class="cart-nav">
-  <a href="../index.html">← Voltar</a>
-  <a href="../index.html"><img src="../logo2.png" class="logo-sm" alt="ATTOS2"></a>
-  <a href="#" id="cartNavAccount">&#x1F464;</a>
-</nav>
+<!-- NAVBAR UNIVERSAL (inserida via js/navbar.js) -->
 
 <div class="cart-content">
   <div class="cart-header">
@@ -337,6 +340,7 @@ body::before {
 
 <div class="cart-footer">ATTOS² — Vestindo a Chama do Espírito • Atos 2:4</div>
 
+<script src="../js/carrinho.js"></script>
 <script>
 // ============================================
 // FIREBASE
@@ -355,94 +359,83 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // ============================================
-// GERENCIAMENTO DO CARRINHO
+// GERENCIAMENTO DO CARRINHO (usa módulo Carrinho)
 // ============================================
-let carrinho = [];
 
 function carregarCarrinho() {
-  const saved = localStorage.getItem('attos2_carrinho');
-  carrinho = saved ? JSON.parse(saved) : [];
   renderizar();
 }
 
-function salvarCarrinho() {
-  localStorage.setItem('attos2_carrinho', JSON.stringify(carrinho));
-  // Se logado, salvar no Firestore também
-  const user = auth.currentUser;
-  if (user) {
-    db.collection('clientes').doc(user.uid).update({
-      carrinho: carrinho
-    }).catch(() => {});
-  }
+// Toast de erro
+function mostrarErro(motivo) {
+  var toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#f44336;color:#fff;padding:12px 24px;border-radius:10px;font-size:0.85rem;z-index:99999;box-shadow:0 8px 30px rgba(244,67,54,0.3);font-family:Arial,sans-serif;text-align:center;max-width:90vw';
+  toast.textContent = motivo;
+  document.body.appendChild(toast);
+  setTimeout(function() { toast.remove(); }, 4000);
 }
 
-function adicionarAoCarrinho(produto, tamanho, corte, quantidade = 1) {
-  const idx = carrinho.findIndex(item =>
-    item.id === produto.id && item.tamanho === tamanho && item.corte === corte
-  );
-  if (idx >= 0) {
-    carrinho[idx].quantidade += quantidade;
+async function alterarQtd(index, delta) {
+  var itens = Carrinho.obter();
+  if (index < 0 || index >= itens.length) return;
+
+  var item = itens[index];
+
+  if (delta > 0) {
+    // Buscar estoque real do Firestore antes de incrementar
+    try {
+      var doc = await db.collection('produtos').doc(item.id).get();
+      if (!doc.exists) {
+        mostrarErro('Produto não encontrado no catálogo.');
+        return;
+      }
+      var modelos = doc.data().modelos || {};
+      var estoques = modelos[item.corte] || {};
+      var estoqueDisponivel = estoques[item.tamanho] || 0;
+
+      var resultado = Carrinho.alterarQuantidade(index, delta, estoqueDisponivel);
+      if (!resultado.ok) {
+        mostrarErro(resultado.motivo);
+        return;
+      }
+    } catch (err) {
+      console.warn('Erro ao verificar estoque:', err);
+      mostrarErro('Erro ao verificar estoque. Tente novamente.');
+      return;
+    }
   } else {
-    carrinho.push({
-      id: produto.id,
-      nome: produto.nome,
-      preco: produto.preco,
-      versiculo: produto.versiculo || '',
-      imagem: produto.imagemUrl || '',
-      tamanho: tamanho || 'M',
-      corte: corte || 'Tradicional',
-      quantidade: quantidade
-    });
+    // Decremento não precisa verificar estoque
+    Carrinho.alterarQuantidade(index, delta);
   }
-  salvarCarrinho();
+
   renderizar();
-  atualizarBadge();
 }
 
 function removerItem(index) {
-  carrinho.splice(index, 1);
-  salvarCarrinho();
+  Carrinho.remover(index);
   renderizar();
-  atualizarBadge();
-}
-
-function alterarQtd(index, delta) {
-  if (carrinho[index].quantidade + delta <= 0) {
-    removerItem(index);
-    return;
-  }
-  carrinho[index].quantidade += delta;
-  salvarCarrinho();
-  renderizar();
-  atualizarBadge();
-}
-
-function limparCarrinho() {
-  carrinho = [];
-  salvarCarrinho();
-  renderizar();
-  atualizarBadge();
 }
 
 function getTotalItens() {
-  return carrinho.reduce((acc, item) => acc + item.quantidade, 0);
+  return Carrinho.totalItens();
 }
 
 function getTotalPreco() {
-  return carrinho.reduce((acc, item) => acc + (item.preco * item.quantidade), 0);
+  return Carrinho.subtotal();
 }
 
 // ============================================
 // RENDERIZAR
 // ============================================
 function renderizar() {
-  const container = document.getElementById('cartItems');
-  const empty = document.getElementById('cartEmpty');
-  const summary = document.getElementById('cartSummary');
-  const count = document.getElementById('cartCount');
+  var carrinho = Carrinho.obter();
+  var container = document.getElementById('cartItems');
+  var empty = document.getElementById('cartEmpty');
+  var summary = document.getElementById('cartSummary');
+  var count = document.getElementById('cartCount');
 
-  const totalItens = getTotalItens();
-  count.textContent = `${totalItens} ${totalItens === 1 ? 'item' : 'itens'}`;
+  var totalItens = getTotalItens();
+  count.textContent = totalItens + ' ' + (totalItens === 1 ? 'item' : 'itens');
 
   if (carrinho.length === 0) {
     empty.style.display = 'block';
@@ -454,75 +447,63 @@ function renderizar() {
   empty.style.display = 'none';
   summary.style.display = 'block';
 
-  container.innerHTML = carrinho.map((item, idx) => `
-    <div class="cart-item">
-      <div class="cart-item-img">${item.imagem ? `<img src="${item.imagem}" style="width:100%;height:100%;object-fit:cover;border-radius:8px">` : '👕'}</div>
-      <div class="cart-item-info">
-        <h3>${item.nome}</h3>
-        ${item.versiculo ? `<div class="cart-item-verse">${item.versiculo}</div>` : ''}
-        <div class="cart-item-detail">${item.tamanho} • ${item.corte}</div>
-      </div>
-      <div class="cart-item-right">
-        <div class="cart-item-price">R$ ${(item.preco * item.quantidade).toFixed(2).replace('.',',')}</div>
-        <div class="cart-item-qty">
-          <button onclick="alterarQtd(${idx}, -1)">−</button>
-          <span>${item.quantidade}</span>
-          <button onclick="alterarQtd(${idx}, 1)">+</button>
-        </div>
-        <button class="cart-item-remove" onclick="removerItem(${idx})">Remover</button>
-      </div>
-    </div>
-  `).join('');
+  container.innerHTML = carrinho.map(function(item, idx) {
+    return '<div class="cart-item">' +
+      '<div class="cart-item-img">' + (item.imagem ? '<img src="' + item.imagem + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px">' : '👕') + '</div>' +
+      '<div class="cart-item-info">' +
+        '<h3>' + item.nome + '</h3>' +
+        (item.versiculo ? '<div class="cart-item-verse">' + item.versiculo + '</div>' : '') +
+        '<div class="cart-item-detail">' + item.tamanho + ' • ' + item.corte + '</div>' +
+      '</div>' +
+      '<div class="cart-item-right">' +
+        '<div class="cart-item-price">R$ ' + (item.preco * item.quantidade).toFixed(2).replace('.',',') + '</div>' +
+        '<div class="cart-item-qty">' +
+          '<button onclick="alterarQtd(' + idx + ', -1)">−</button>' +
+          '<span>' + item.quantidade + '</span>' +
+          '<button onclick="alterarQtd(' + idx + ', 1)">+</button>' +
+        '</div>' +
+        '<button class="cart-item-remove" onclick="removerItem(' + idx + ')">Remover</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
 
-  const subtotal = getTotalPreco();
-  document.getElementById('subtotal').textContent = `R$ ${subtotal.toFixed(2).replace('.',',')}`;
-  document.getElementById('total').textContent = `R$ ${subtotal.toFixed(2).replace('.',',')}`;
-}
-
-function atualizarBadge() {
-  // Atualizar badge no navbar da home (se existir)
-  const total = getTotalItens();
-  // Disparar evento para outras páginas
-  window.dispatchEvent(new CustomEvent('carrinhoAtualizado', { detail: { total } }));
+  var subtotal = getTotalPreco();
+  document.getElementById('subtotal').textContent = 'R$ ' + subtotal.toFixed(2).replace('.',',');
+  document.getElementById('total').textContent = 'R$ ' + subtotal.toFixed(2).replace('.',',');
 }
 
 // ============================================
 // FINALIZAR COMPRA
 // ============================================
 function finalizarCompra() {
-  const user = auth.currentUser;
+  var user = auth.currentUser;
   if (!user) {
-    // Redirecionar para login com callback
     sessionStorage.setItem('redirectPosLogin', '../pages/carrinho.html');
     window.location.href = 'login.html';
     return;
   }
-  if (carrinho.length === 0) return;
-  // Redirecionar para checkout
+  if (Carrinho.obter().length === 0) return;
   window.location.href = 'checkout.html';
 }
 
 // ============================================
 // AUTH STATE
 // ============================================
-auth.onAuthStateChanged(user => {
-  const account = document.getElementById('cartNavAccount');
+auth.onAuthStateChanged(function(user) {
   if (user) {
-    account.textContent = user.displayName || user.email;
-    // Tentar carregar carrinho do Firestore
-    db.collection('clientes').doc(user.uid).get().then(doc => {
+    // Tentar carregar carrinho do Firestore se o local estiver vazio
+    db.collection('clientes').doc(user.uid).get().then(function(doc) {
       if (doc.exists && doc.data().carrinho && doc.data().carrinho.length > 0) {
-        // Merge: localStorage tem prioridade
-        const local = JSON.parse(localStorage.getItem('attos2_carrinho') || '[]');
+        var local = JSON.parse(localStorage.getItem('attos2_carrinho') || '[]');
         if (local.length === 0) {
-          carrinho = doc.data().carrinho;
-          salvarCarrinho();
+          // Restaurar carrinho do Firestore para o localStorage
+          doc.data().carrinho.forEach(function(item) {
+            localStorage.setItem('attos2_carrinho', JSON.stringify(doc.data().carrinho));
+          });
           renderizar();
         }
       }
-    }).catch(() => {});
-  } else {
-    account.textContent = '👤';
+    }).catch(function() {});
   }
 });
 

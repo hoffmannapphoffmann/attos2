@@ -5,7 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ATTOS2 - Detalhe do Produto</title>
   <link rel="stylesheet" href="../css/style.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <link rel="icon" type="image/png" href="../logo2.png">
+  <link rel="shortcut icon" href="../logo2.png">
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+  <script src="../js/navbar.js"></script>
+  <script src="../js/carrinho.js"></script>
   <style>
     /* ============================================
        PÁGINA DE DETALHE DO PRODUTO
@@ -400,25 +408,7 @@
   </style>
 <body>
 
-  <!-- NAVBAR -->
-  <nav class="navbar">
-    <div class="nav-container">
-      <a href="../index.html" class="nav-logo">
-        <img src="../logo2.png" alt="ATTOS2" height="32">
-      </a>
-      <div class="nav-links">
-        <a href="../index.html">Home</a>
-        <a href="produtos.html">Produtos</a>
-        <a href="carrinho.html" class="nav-cart">
-          <i class="ti ti-shopping-cart"></i>
-          <span class="cart-badge" id="cartCountNav">0</span>
-        </a>
-        <a href="login.html" id="navUser">
-          <i class="ti ti-user"></i>
-        </a>
-      </div>
-    </div>
-  </nav>
+  <!-- NAVBAR UNIVERSAL (inserida via js/navbar.js) -->
 
   <!-- CONTEÚDO -->
   <div id="detalheLoading" class="detalhe-loading">
@@ -737,58 +727,68 @@
     };
 
     // ============================================
-    // ADICIONAR AO CARRINHO
+    // TOAST DE ERRO
     // ============================================
-    window.adicionarAoCarrinho = function() {
+    function mostrarErro(motivo) {
+      var toast = document.createElement('div');
+      toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#f44336;color:#fff;padding:12px 24px;border-radius:10px;font-size:0.85rem;z-index:99999;box-shadow:0 8px 30px rgba(244,67,54,0.3);font-family:Arial,sans-serif;text-align:center;max-width:90vw';
+      toast.textContent = motivo;
+      document.body.appendChild(toast);
+      setTimeout(function() { toast.remove(); }, 4000);
+    }
+
+    // ============================================
+    // ADICIONAR AO CARRINHO (módulo Carrinho + estoque Firestore)
+    // ============================================
+    window.adicionarAoCarrinho = async function() {
       if (!corteSelecionado || !tamanhoSelecionado) return;
 
-      const item = {
-        id: produto.id,
-        nome: produto.nome,
-        preco: produto.preco,
-        versiculo: produto.versiculo || '',
-        imagem: produto.imagemUrl || '',
-        tamanho: tamanhoSelecionado,
-        corte: corteSelecionado,
-        cor: corSelecionada || '',
-        quantidade: 1
-      };
+      // Buscar estoque real do Firestore (não usa cache em memória)
+      try {
+        const docRef = doc(db, "produtos", produto.id);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) {
+          mostrarErro('Produto não encontrado no catálogo.');
+          return;
+        }
+        const modelos = docSnap.data().modelos || {};
+        const estoques = modelos[corteSelecionado] || {};
+        const estoqueDisponivel = estoques[tamanhoSelecionado] || 0;
 
-      // Salvar no localStorage
-      const saved = localStorage.getItem('attos2_carrinho');
-      const carrinho = saved ? JSON.parse(saved) : [];
-      const idx = carrinho.findIndex(i => 
-        i.id === item.id && 
-        i.tamanho === item.tamanho && 
-        i.corte === item.corte &&
-        i.cor === item.cor
-      );
-      if (idx >= 0) {
-        carrinho[idx].quantidade += 1;
-      } else {
-        carrinho.push(item);
+        // Usar módulo Carrinho global (window.Carrinho)
+        const resultado = window.Carrinho.adicionar({
+          id: produto.id,
+          nome: produto.nome,
+          preco: produto.preco,
+          versiculo: produto.versiculo || '',
+          imagem: produto.imagemUrl || '',
+          tamanho: tamanhoSelecionado,
+          corte: corteSelecionado,
+          quantidade: 1,
+          estoqueDisponivel: estoqueDisponivel
+        });
+
+        if (!resultado.ok) {
+          mostrarErro(resultado.motivo);
+          return;
+        }
+      } catch (err) {
+        console.error('Erro ao verificar estoque:', err);
+        mostrarErro('Erro ao verificar estoque. Tente novamente.');
+        return;
       }
-      localStorage.setItem('attos2_carrinho', JSON.stringify(carrinho));
 
-      // Atualizar badge
+      // Toast de sucesso
       atualizarBadgeCarrinho();
-
-      // Toast
-      const toast = document.getElementById('toastAdd');
+      var toast = document.getElementById('toastAdd');
       toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 2500);
+      setTimeout(function() { toast.classList.remove('show'); }, 2500);
     };
 
     function atualizarBadgeCarrinho() {
-      const badge = document.getElementById('cartCountNav');
-      const saved = localStorage.getItem('attos2_carrinho');
-      if (saved) {
-        const itens = JSON.parse(saved);
-        const total = itens.reduce((acc, i) => acc + i.quantidade, 0);
-        badge.textContent = total;
-      } else {
-        badge.textContent = '0';
-      }
+      var badge = document.getElementById('cartCountNav');
+      if (!badge) return;
+      badge.textContent = window.Carrinho ? window.Carrinho.totalItens() : '0';
     }
 
     // Vincular botão

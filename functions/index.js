@@ -6,9 +6,11 @@
 const {setGlobalOptions} = require("firebase-functions");
 const {onRequest} = require("firebase-functions/https");
 const {onDocumentCreated, onDocumentUpdated} = require("firebase-functions/v2/firestore");
+const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
+const { FieldValue, Timestamp } = require("firebase-admin/firestore");
 const axios = require("axios");
 
 setGlobalOptions({ maxInstances: 10, region: "southamerica-east1" });
@@ -48,6 +50,67 @@ exports.gerarCobranca = onRequest(
       if (!pedidoId || !clienteNome || !clienteEmail || !cpfCnpj || !valor) {
         return res.status(400).json({ error: "Campos obrigatórios: pedidoId, clienteNome, clienteEmail, cpfCnpj, valor" });
       }
+
+      // ============================================
+      // TAREFA 4: RESERVAR ESTOQUE VIA TRANSAÇÃO
+      // ============================================
+      // Antes de criar cobrança no Asaas, reserva o estoque de cada item
+      // para evitar que 2 compras simultâneas comprem o mesmo estoque.
+      try {
+        const pedidoDoc = await db.collection("pedidos").doc(pedidoId).get();
+        if (!pedidoDoc.exists) {
+          return res.status(404).json({ error: "Pedido não encontrado" });
+        }
+        const pedidoData = pedidoDoc.data();
+        const itens = pedidoData.itens || [];
+        const reservas = []; // [{ produtoId, corte, tamanho, quantidade }]
+
+        for (const item of itens) {
+          if (!item.produtoId || !item.corte || !item.tamanho || !item.quantidade) continue;
+
+          const produtoRef = db.collection("produtos").doc(item.produtoId);
+          const campoEstoque = "modelos." + item.corte + "." + item.tamanho;
+
+          await db.runTransaction(async (transaction) => {
+            const produtoSnap = await transaction.get(produtoRef);
+            if (!produtoSnap.exists) {
+              throw new Error("Produto " + item.produtoId + " não encontrado");
+            }
+            const data = produtoSnap.data();
+            const modelos = data.modelos || {};
+            const estoqueAtual = (modelos[item.corte] && modelos[item.corte][item.tamanho]) || 0;
+            if (estoqueAtual < item.quantidade) {
+              throw new Error("Estoque insuficiente para " + item.nome + " (" + item.corte + "/" + item.tamanho + "): " + estoqueAtual + " disponíveis, " + item.quantidade + " solicitados");
+            }
+            transaction.update(produtoRef, {
+              [campoEstoque]: FieldValue.increment(-item.quantidade)
+            });
+          });
+
+          reservas.push({
+            produtoId: item.produtoId,
+            corte: item.corte,
+            tamanho: item.tamanho,
+            quantidade: item.quantidade
+          });
+        }
+
+        // Marca no pedido que o estoque foi reservado
+        await db.collection("pedidos").doc(pedidoId).update({
+          estoqueReservado: true,
+          reservas: reservas
+        });
+        logger.info("Estoque reservado para pedido " + pedidoId + ": " + JSON.stringify(reservas));
+      } catch (errReserva) {
+        logger.error("Falha ao reservar estoque:", errReserva.message);
+        return res.status(409).json({
+          success: false,
+          error: "Não foi possível reservar o estoque: " + errReserva.message
+        });
+      }
+      // ============================================
+      // FIM TAREFA 4 — RESERVA DE ESTOQUE
+      // ============================================
 
       const ASAAS_BASE = "https://api.asaas.com/v3";
       const headers = {
@@ -224,35 +287,57 @@ exports.webhookAsaas = onRequest(
 
       const statusPedido = statusMap[novoStatus] || "aguardando_pagamento";
 
-      if (statusPedido === "pago") {
-        // Atualizar pedido
-        await db.collection("pedidos").doc(pedidoId).update({
-          status: statusPedido,
-          pagamentoConfirmadoEm: admin.firestore.FieldValue.serverTimestamp(),
-          "pagamentoData.status": novoStatus
-        });
+      const pedidoDoc = await db.collection("pedidos").doc(pedidoId).get();
+      const pedidoData = pedidoDoc.exists ? pedidoDoc.data() : {};
 
-        // Atualizar estoque dos produtos (estrutura: modelos[corte][tamanho])
-        const pedidoDoc = await db.collection("pedidos").doc(pedidoId).get();
-        if (pedidoDoc.exists) {
-          const itens = pedidoDoc.data().itens || [];
+      if (statusPedido === "pago") {
+        // Se estoque já foi reservado no gerarCobranca, NÃO decrementar de novo
+        if (!pedidoData.estoqueReservado) {
+          // Fallback: decrementar estoque (comportamento antigo para pedidos sem reserva)
+          const itens = pedidoData.itens || [];
           for (const item of itens) {
             if (item.produtoId && item.tamanho && item.quantidade && item.corte) {
               const prodRef = db.collection("produtos").doc(item.produtoId);
-              // Decrementar estoque no corte e tamanho específicos
-              const campoEstoque = `modelos.${item.corte}.${item.tamanho}`;
+              const campoEstoque = "modelos." + item.corte + "." + item.tamanho;
               await prodRef.update({
-                [campoEstoque]: admin.firestore.FieldValue.increment(-item.quantidade)
+                [campoEstoque]: FieldValue.increment(-item.quantidade)
               });
-              logger.info(`Estoque baixado: ${item.produtoId} / ${item.corte} / ${item.tamanho} / -${item.quantidade}`);
-            } else {
-              logger.warn(`Item sem corte ou dados incompletos:`, JSON.stringify(item));
+              logger.info("Estoque baixado (fallback): " + item.produtoId + " / " + item.corte + " / " + item.tamanho + " / -" + item.quantidade);
             }
           }
+        } else {
+          logger.info("Pedido " + pedidoId + " já teve estoque reservado — pulando decremento.");
         }
 
+        await db.collection("pedidos").doc(pedidoId).update({
+          status: statusPedido,
+          pagamentoConfirmadoEm: FieldValue.serverTimestamp(),
+          "pagamentoData.status": novoStatus
+        });
 
-        logger.info(`Pedido ${pedidoId} pago! Estoque atualizado.`);
+        logger.info("Pedido " + pedidoId + " pago!");
+      } else if (statusPedido === "cancelado") {
+        // DEVOLVER ESTOQUE RESERVADO se o pedido for cancelado
+        if (pedidoData.estoqueReservado && !pedidoData.estoqueDevolvido) {
+          const reservas = pedidoData.reservas || [];
+          for (const r of reservas) {
+            const prodRef = db.collection("produtos").doc(r.produtoId);
+            const campoEstoque = "modelos." + r.corte + "." + r.tamanho;
+            await prodRef.update({
+              [campoEstoque]: FieldValue.increment(r.quantidade)
+            });
+            logger.info("Estoque devolvido: " + r.produtoId + " / " + r.corte + " / " + r.tamanho + " / +" + r.quantidade);
+          }
+          await db.collection("pedidos").doc(pedidoId).update({
+            estoqueDevolvido: true
+          });
+          logger.info("Pedido " + pedidoId + " cancelado — estoque devolvido.");
+        }
+
+        await db.collection("pedidos").doc(pedidoId).update({
+          status: statusPedido,
+          "pagamentoData.status": novoStatus
+        });
       } else {
         await db.collection("pedidos").doc(pedidoId).update({
           status: statusPedido,
@@ -306,7 +391,7 @@ exports.seed = onRequest(
     for (const p of produtos) {
       await db.collection("produtos").add({
         ...p,
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
+        createdAt: FieldValue.serverTimestamp()
       });
       count++;
     }
@@ -626,6 +711,291 @@ exports.onPedidoAtualizado = onDocumentUpdated(
     }
 
     await enviarEmail({ para: email, assunto, html });
+  }
+);
+
+// ============================================
+// MELHOR ENVIO — GERAR ETIQUETA
+// ============================================
+// POST /api/gerar-etiqueta
+// Body: { pedidoId }
+// Retorna: { success, tracking, urlEtiqueta, urlRastreamento }
+exports.gerarEtiqueta = onRequest(
+  { secrets: [MELHOR_ENVIO_TOKEN] },
+  async (req, res) => {
+    // CORS
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Content-Type");
+    if (req.method === "OPTIONS") return res.status(204).send("");
+
+    if (req.method !== "POST") return res.status(405).json({ error: "Método não permitido" });
+
+    try {
+      const { pedidoId } = req.body;
+
+      if (!pedidoId) {
+        return res.status(400).json({ error: "Campo obrigatório: pedidoId" });
+      }
+
+      // Buscar dados do pedido
+      const pedidoDoc = await db.collection("pedidos").doc(pedidoId).get();
+      if (!pedidoDoc.exists) {
+        return res.status(404).json({ error: "Pedido não encontrado" });
+      }
+
+      const pedido = pedidoDoc.data();
+
+      // Validar se o pedido está pago
+      if (pedido.status !== "pago") {
+        return res.status(400).json({ error: "Pedido precisa estar pago para gerar etiqueta" });
+      }
+
+      // Validar se já não tem etiqueta gerada
+      if (pedido.codigoRastreio) {
+        return res.status(400).json({ error: "Etiqueta já foi gerada para este pedido", codigoRastreio: pedido.codigoRastreio });
+      }
+
+      const token = MELHOR_ENVIO_TOKEN.value();
+      const ME_BASE = "https://melhorenvio.com.br";
+
+      // Dados do remetente (ATTOS2)
+      const remetente = {
+        name: "Cleverson Hoffmann",
+        phone: "41999999999",
+        email: "contato@attos2.com.br",
+        document: "00000000000", // CPF do remetente
+        company_document: "", // CNPJ se tiver
+        state_register: "",
+        address: "Rua Exemplo",
+        complement: "",
+        number: "100",
+        district: "Centro",
+        city: "Bocaiuva do Sul",
+        state_abbr: "PR",
+        country_id: "BRA",
+        postal_code: "83458890",
+        note: "ATTOS2"
+      };
+
+      // Dados do destinatário (cliente)
+      const endereco = pedido.enderecoEntrega || {};
+      const destinatario = {
+        name: pedido.clienteNome || "Cliente",
+        phone: (pedido.clienteTelefone || "").replace(/\D/g, ""),
+        email: pedido.clienteEmail || "",
+        document: (pedido.cpfCnpj || "").replace(/\D/g, ""),
+        company_document: "",
+        state_register: "",
+        address: (endereco.logradouro || "").split(",")[0].trim(),
+        complement: endereco.complemento || "",
+        number: (endereco.logradouro || "").includes(",") ? (endereco.logradouro || "").split(",").pop().trim() : "s/n",
+        district: endereco.bairro || "",
+        city: endereco.cidade || "",
+        state_abbr: endereco.estado || "",
+        country_id: "BRA",
+        postal_code: (endereco.cep || "").replace(/\D/g, ""),
+        note: `Pedido #${pedidoId.substring(0, 8)}`
+      };
+
+      // Montar volumes (itens do pedido)
+      const volumes = (pedido.itens || []).map(item => ({
+        height: 2,
+        width: 20,
+        length: 30,
+        weight: 0.2,
+        insurance_value: item.preco || 0,
+        quantity: item.quantidade || 1
+      }));
+
+      // Determinar serviço (PAC = 1, SEDEX = 2)
+      const servicoId = pedido.freteInfo?.servico === "SEDEX" ? "2" : "1";
+
+      logger.info(`Gerando etiqueta para pedido ${pedidoId}:`, JSON.stringify({
+        servico: servicoId,
+        destinatario: destinatario.name,
+        cidade: `${destinatario.city}/${destinatario.state_abbr}`,
+        volumes: volumes.length
+      }));
+
+      // PASSO 1: Comprar etiqueta (checkout)
+      const checkoutPayload = {
+        service: parseInt(servicoId),
+        from: remetente,
+        to: destinatario,
+        products: volumes,
+        volumes: volumes.map((v, i) => ({
+          height: v.height,
+          width: v.width,
+          length: v.length,
+          weight: v.weight,
+          insurance_value: v.insurance_value,
+          quantity: v.quantity
+        })),
+        options: {
+          insurance_value: pedido.total || 0,
+          receipt: false,
+          own_hand: false,
+          reverse: false,
+          non_commercial: true,
+          invoice: {
+            key: ""
+          }
+        }
+      };
+
+      const checkoutResponse = await axios.post(
+        `${ME_BASE}/api/v2/me/shipment/checkout`,
+        checkoutPayload,
+        {
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+            "User-Agent": "ATTOS2 (contato@attos2.com.br)"
+          }
+        }
+      );
+
+      const checkoutData = checkoutResponse.data;
+
+      // Verificar se a compra foi bem-sucedida
+      if (!checkoutData.purchase || !checkoutData.purchase.id) {
+        logger.error("Erro ao comprar etiqueta:", JSON.stringify(checkoutData));
+        return res.status(500).json({
+          success: false,
+          error: "Erro ao gerar etiqueta no Melhor Envio",
+          detalhes: checkoutData
+        });
+      }
+
+      const purchaseId = checkoutData.purchase.id;
+      const tracking = checkoutData.purchase.tracking || checkoutData.purchase.protocol || "";
+      const pedidoMelhorEnvio = checkoutData.purchase.pedido || checkoutData.purchase.order || "";
+
+      logger.info(`Etiqueta comprada! PurchaseID: ${purchaseId}, Tracking: ${tracking}`);
+
+      // PASSO 2: Gerar PDF da etiqueta
+      let urlEtiqueta = "";
+      try {
+        const printResponse = await axios.post(
+          `${ME_BASE}/api/v2/me/shipment/print`,
+          {
+            orders: [purchaseId.toString()],
+            mode: "private"
+          },
+          {
+            headers: {
+              "Accept": "application/json",
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
+              "User-Agent": "ATTOS2 (contato@attos2.com.br)"
+            }
+          }
+        );
+
+        const printData = printResponse.data;
+        if (printData.url) {
+          urlEtiqueta = printData.url;
+        }
+        logger.info(`PDF da etiqueta gerado: ${urlEtiqueta}`);
+      } catch (printErr) {
+        logger.warn("Erro ao gerar PDF da etiqueta (pode gerar manualmente):", printErr.message);
+      }
+
+      // PASSO 3: Atualizar pedido com código de rastreio
+      const urlRastreio = tracking
+        ? `https://rastreamento.correios.com.br/app/index.php?objeto=${tracking}`
+        : "";
+
+      await db.collection("pedidos").doc(pedidoId).update({
+        codigoRastreio: tracking,
+        status: "enviado",
+        "freteInfo.tracking": tracking,
+        "freteInfo.urlEtiqueta": urlEtiqueta,
+        "freteInfo.purchaseId": purchaseId,
+        "freteInfo.pedidoMelhorEnvio": pedidoMelhorEnvio,
+        enviadoEm: FieldValue.serverTimestamp()
+      });
+
+      logger.info(`Pedido ${pedidoId} atualizado: status=enviado, tracking=${tracking}`);
+
+      res.json({
+        success: true,
+        tracking: tracking,
+        urlEtiqueta: urlEtiqueta,
+        urlRastreamento: urlRastreio,
+        purchaseId: purchaseId
+      });
+
+    } catch (err) {
+      logger.error("Erro ao gerar etiqueta Melhor Envio:", err.response?.data || err.message);
+      res.status(500).json({
+        success: false,
+        error: "Erro ao gerar etiqueta. Tente novamente.",
+        detalhes: err.response?.data || err.message
+      });
+    }
+  }
+);
+
+// ============================================
+// TAREFA 5: EXPIRAR PEDIDOS NÃO PAGOS (função agendada)
+// ============================================
+// Roda a cada hora e expira pedidos com +24h sem pagamento.
+// Devolve o estoque reservado (idempotente via estoqueDevolvido).
+exports.expirarPedidosNaoPagos = onSchedule(
+  { schedule: "every 1 hours", region: "southamerica-east1" },
+  async (event) => {
+    const agora = Timestamp.now();
+    const limite = new Date(agora.toDate().getTime() - 24 * 60 * 60 * 1000);
+    const limiteTs = Timestamp.fromDate(limite);
+
+    try {
+      const snapshot = await db.collection("pedidos")
+        .where("status", "==", "aguardando_pagamento")
+        .where("createdAt", "<=", limiteTs)
+        .get();
+
+      if (snapshot.empty) {
+        logger.info("Nenhum pedido para expirar.");
+        return;
+      }
+
+      let expirados = 0;
+      for (const doc of snapshot.docs) {
+        const pedido = doc.data();
+
+        // Idempotência: só processa se estoqueReservado=true e estoqueDevolvido=false
+        if (pedido.estoqueReservado && !pedido.estoqueDevolvido) {
+          const reservas = pedido.reservas || [];
+          for (const r of reservas) {
+            const prodRef = db.collection("produtos").doc(r.produtoId);
+            const campoEstoque = "modelos." + r.corte + "." + r.tamanho;
+            await prodRef.update({
+              [campoEstoque]: FieldValue.increment(r.quantidade)
+            });
+            logger.info("Expiracao: estoque devolvido " + r.produtoId + " / " + r.corte + " / " + r.tamanho + " / +" + r.quantidade);
+          }
+          await doc.ref.update({
+            estoqueDevolvido: true
+          });
+        }
+
+        // Marcar como expirado
+        await doc.ref.update({
+          status: "expirado",
+          expiradoEm: FieldValue.serverTimestamp()
+        });
+
+        logger.info("Pedido " + doc.id + " expirado.");
+        expirados++;
+      }
+
+      logger.info("Expiração concluída: " + expirados + " pedidos expirados.");
+    } catch (err) {
+      logger.error("Erro ao expirar pedidos:", err.message);
+    }
   }
 );
 

@@ -6,13 +6,15 @@
 | Tarefa | Status | Teste rodado | Resultado | Data |
 |---|---|---|---|---|
 | 1 — Módulo central | ✅ Concluída | node js/carrinho.test.js | 25/25 passaram | 21/06/2026 |
-| 2 — Validação de estoque (3 entradas) | ⏳ Em andamento | — | — | — |
+| 2 — Validação de estoque (3 entradas) | ✅ Concluída | node syntax check + onclick check | 3 arquivos OK; Carrinho.adicionar com estoqueDisponivel | 21/06/2026 |
 | 7 — Substituir .reduce | ✅ Concluída | grep reduce pages/checkout.html | 0 ocorrências; Carrinho.subtotal em 3 locais | 21/06/2026 |
-| 3 — Revalidação no checkout | ⏳ Em andamento | — | — | — |
-| 4 — Reserva transacional + webhook | ⏳ Pendente | — | — | — |
-| 5 — Expiração agendada | ⏳ Pendente | — | — | — |
-| 6 — Limpar carrinho no Firestore | ⏳ Pendente | — | — | — |
-| 8 — Checklist final | ⏳ Pendente | — | — | — |
+| 3 — Revalidação no checkout | ✅ Concluída | Teste lógico: for await db.collection('produtos').doc(id).get() antes de criar pedido | itensSemEstoque[] bloqueia confirmarPedido; btn reabilitado | 21/06/2026 |
+| 4 — Reserva transacional + webhook | ✅ Concluída | node _test_tarefa4_5.js (emulador l+f) | 12/12; transação OK; concorrência bloqueia 2o; webhook devolve estoque; idempotente | 21/06/2026 |
+| 5 — Expiração agendada | ✅ Concluída | node _test_tarefa5.js (emulador l+f+pubsub) | 7/7; pedido 25h expirado=status expirado+estoque devolvido; pedido pago não é tocado; idempotente | 21/06/2026 |
+| 6 — Limpar carrinho no Firestore | ✅ Concluída | replace localStorage.removeItem | await Carrinho.limparTudo(db, user) | 21/06/2026 |
+| 8 — Checklist final | ✅ Concluída | _test_tarefa4_5.js + _test_tarefa5.js + js/carrinho.test.js | 19 emulador + 25 unitários = 44/44 | 21/06/2026 |
+
+**⚠️ Pendência:** Fluxo completo com Asaas sandbox/produção real ainda não testado. Só a lógica de estoque foi validada isoladamente no emulador.
 
 ---
 

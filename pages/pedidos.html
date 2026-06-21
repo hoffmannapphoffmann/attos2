@@ -526,7 +526,7 @@ async function carregarPedidos(user) {
                   <i class="ti ti-x"></i> Cancelar
                 </button>
               ` : ''}
-              ${p.codigoRastreio ? `<div class="ped-card-rastreio">📦 Código: <strong>${p.codigoRastreio}</strong></div>` : ''}
+              ${p.codigoRastreio ? `<div class="ped-card-rastreio">📦 <a href="https://rastreamento.correios.com.br/app/index.php?objeto=${p.codigoRastreio}" target="_blank" style="color:var(--gold);text-decoration:none">Rastrear: <strong>${p.codigoRastreio}</strong> <i class="ti ti-external-link" style="font-size:0.6rem"></i></a></div>` : ''}
             </div>
           </div>
         </div>

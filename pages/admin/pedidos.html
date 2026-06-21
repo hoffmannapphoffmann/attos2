@@ -339,7 +339,7 @@ async function abrirDetalhe(id) {
       <p><strong>Subtotal:</strong> R$ ${(p.subtotal || 0).toFixed(2).replace('.',',')}</p>
       <p><strong>Frete:</strong> R$ ${(p.frete || 0).toFixed(2).replace('.',',')}</p>
       <p style="color:var(--gold);font-size:1rem"><strong>Total:</strong> R$ ${(p.total || 0).toFixed(2).replace('.',',')}</p>
-      ${p.codigoRastreio ? `<p><strong>Rastreio:</strong> ${p.codigoRastreio}</p>` : ''}
+      ${p.codigoRastreio ? `<p><strong>Rastreio:</strong> <a href="https://rastreamento.correios.com.br/app/index.php?objeto=${p.codigoRastreio}" target="_blank" style="color:var(--gold);text-decoration:none">${p.codigoRastreio} <i class="ti ti-external-link" style="font-size:0.7rem"></i></a></p>` : ''}
     `;
 
     document.getElementById('editStatus').value = p.status || 'aguardando_pagamento';

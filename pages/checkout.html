@@ -1538,8 +1538,11 @@ async function confirmarPedido() {
           } else {
             document.getElementById('pollingStatus').textContent = 'Aguardando pagamento... (' + tentativas + 's)';
           }
-        } catch(e) {}
+        } catch(e) { console.warn('Polling PIX error:', e.message); }
       }, 5000);
+
+      // Limpar polling ao sair da página
+      window.addEventListener('beforeunload', function() { clearInterval(pollingId); });
     } else if (metodoPagamento === 'CREDIT_CARD' && result.invoiceUrl) {
       document.querySelector('#checkoutSuccess .success-icon').innerHTML = `
         <div style="font-size:3rem;color:var(--success)"><i class="ti ti-credit-card"></i></div>

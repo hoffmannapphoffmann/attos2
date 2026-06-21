@@ -44,8 +44,11 @@ exports.gerarCobranca = onRequest(
 
     if (req.method !== "POST") return res.status(405).json({ error: "Método não permitido" });
 
+    let reservas = []; // [{ produtoId, corte, tamanho, quantidade }]
+    let pedidoId; // visível no catch para rollback
     try {
-      const { pedidoId, clienteNome, clienteEmail, cpfCnpj, valor, descricao } = req.body;
+      const { pedidoId: pid, clienteNome, clienteEmail, cpfCnpj, valor, descricao } = req.body;
+      pedidoId = pid;
 
       if (!pedidoId || !clienteNome || !clienteEmail || !cpfCnpj || !valor) {
         return res.status(400).json({ error: "Campos obrigatórios: pedidoId, clienteNome, clienteEmail, cpfCnpj, valor" });
@@ -63,7 +66,6 @@ exports.gerarCobranca = onRequest(
         }
         const pedidoData = pedidoDoc.data();
         const itens = pedidoData.itens || [];
-        const reservas = []; // [{ produtoId, corte, tamanho, quantidade }]
 
         for (const item of itens) {
           if (!item.produtoId || !item.corte || !item.tamanho || !item.quantidade) continue;
@@ -240,6 +242,29 @@ exports.gerarCobranca = onRequest(
 
     } catch (err) {
       logger.error("Erro ao gerar cobrança:", err.response?.data || err.message);
+
+      // Rollback: se a reserva de estoque já tinha acontecido antes do
+      // Asaas falhar, devolver o estoque reservado imediatamente.
+      if (reservas.length > 0) {
+        try {
+          for (const r of reservas) {
+            const produtoRef = db.collection("produtos").doc(r.produtoId);
+            const campoEstoque = "modelos." + r.corte + "." + r.tamanho;
+            await produtoRef.update({
+              [campoEstoque]: FieldValue.increment(r.quantidade)
+            });
+          }
+          await db.collection("pedidos").doc(pedidoId).update({
+            estoqueReservado: false,
+            estoqueDevolvido: true,
+            reservas: FieldValue.delete()
+          });
+          logger.info("Rollback de estoque aplicado para pedido " + pedidoId + " após falha no Asaas.");
+        } catch (errRollback) {
+          logger.error("Falha ao reverter estoque do pedido " + pedidoId + ":", errRollback.message);
+        }
+      }
+
       res.status(500).json({
         success: false,
         error: err.response?.data?.errors?.[0]?.description || err.message

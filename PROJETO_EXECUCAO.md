@@ -264,6 +264,6 @@ Cada produto pode ter **múltiplos cortes/modelagens**, e cada corte tem seus pr
 - **Música:** Gabriela Rocha - Atos 2 (toca na Home)
 - **Pagamento:** Asaas (Pix, boleto, cartão) — já implementado (PIX e cartão), falta testar em sandbox
 - **Frete:** Melhor Envio (API gratuita) — já integrado via Cloud Function
-- **Emails:** Resend (3.000/mês grátis) — já integrado (boas-vindas + notificações de pedido)
+- **Emails:** Resend (3.000/mês grátis) — a integrar
 - **Manutenção:** 1 camiseta/mês (ajustes, correções, suporte)
 - **Custo fixo mensal:** R$ 3,33 (domínio)

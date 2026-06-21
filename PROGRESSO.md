@@ -5,6 +5,31 @@
 
 ---
 
+## 20/06/2026 — Correção de emails transacionais (Resend)
+
+**Tarefa:** Corrigir envio de emails via Resend — domínio `attos2.com.br` não verificado.
+
+**Problema:** As Cloud Functions `onNewCliente` e `onPedidoAtualizado` estavam tentando enviar emails com `from: "ATTOS2 <contato@attos2.com.br>"`, mas o domínio `attos2.com.br` não está verificado no Resend, resultando em erro 403 `validation_error`.
+
+**O que foi alterado:**
+1. `functions/index.js` — `from` alterado de `contato@attos2.com.br` para `onboarding@resend.dev` (domínio padrão do Resend que funciona sem verificação)
+2. Feito deploy das functions `onNewCliente` e `onPedidoAtualizado`
+
+**Pendente (quando o domínio for configurado):**
+- Verificar `attos2.com.br` no painel do Resend (adicionar registro DNS)
+- Voltar o `from` para `contato@attos2.com.br`
+- Fazer novo deploy das functions
+
+## 20/06/2026 — Webhook do Asaas configurado e testado
+
+**Tarefa:** Configurar webhook do Asaas para notificar pagamentos automaticamente.
+
+**O que foi feito:**
+1. Criado script `scripts-dev/configurar-webhook-asaas.js` para configurar via API
+2. Webhook criado com sucesso (ID: `2f5b6b2d-aff7-4064-91c3-d4514d6a6cac`)
+3. Eventos configurados: PAYMENT_RECEIVED, PAYMENT_CONFIRMED, PAYMENT_OVERDUE, PAYMENT_REFUNDED
+4. Testado com pedido real — webhook funcionou, status atualizado automaticamente ✅
+
 ## 20/06/2026 — Atualização do PROJETO_EXECUCAO.md
 
 **Tarefa:** Sincronizar `PROJETO_EXECUCAO.md` com o código real do repositório.

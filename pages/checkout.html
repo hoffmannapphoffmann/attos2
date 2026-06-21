@@ -467,7 +467,24 @@ body::before {
   <div class="checkout-left">
     <h1 class="checkout-title">Finalizar <em>Pedido</em></h1>
 
-    <!-- ETAPA 1: ENDEREÇO -->
+    <!-- SELEÇÃO: RECEBER EM CASA vs RETIRAR NO LOCAL -->
+    <div style="margin-bottom:32px;padding:20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px">
+      <div style="font-size:0.7rem;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;margin-bottom:12px">Tipo de Entrega</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <label class="tipo-entrega-opcao" id="opcaoReceber" onclick="selecionarTipoEntrega('receber')" style="flex:1;min-width:180px;cursor:pointer;background:rgba(212,175,55,0.08);border:2px solid var(--gold);border-radius:10px;padding:16px;text-align:center;transition:all 0.3s">
+          <div style="font-size:1.5rem;margin-bottom:6px"><i class="ti ti-truck-delivery"></i></div>
+          <div style="font-size:0.75rem;letter-spacing:1px;font-weight:700;color:var(--gold)">Receber em Casa</div>
+          <div style="font-size:0.6rem;color:var(--text-muted);margin-top:4px">PAC / SEDEX</div>
+        </label>
+        <label class="tipo-entrega-opcao" id="opcaoRetirar" onclick="selecionarTipoEntrega('retirar')" style="flex:1;min-width:180px;cursor:pointer;background:var(--card-bg);border:2px solid var(--border);border-radius:10px;padding:16px;text-align:center;transition:all 0.3s">
+          <div style="font-size:1.5rem;margin-bottom:6px"><i class="ti ti-map-pin"></i></div>
+          <div style="font-size:0.75rem;letter-spacing:1px;font-weight:700;color:var(--text)">Retirar no Local</div>
+          <div style="font-size:0.6rem;color:var(--success);margin-top:4px">Grátis • Bocaiuva do Sul - PR</div>
+        </label>
+      </div>
+    </div>
+
+    <!-- ETAPA 1: ENDEREÇO (só aparece se for "receber em casa") -->
     <div class="etapa" id="etapaEndereco">
       <div class="etapa-header">
         <div class="etapa-num">1</div>
@@ -594,6 +611,30 @@ body::before {
           </select>
         </div>
       </div>
+
+      <!-- FORMULÁRIO DO CARTÃO (checkout transparente) -->
+      <div id="cartaoForm" style="display:none;margin-bottom:16px;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px">
+        <div style="font-size:0.7rem;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:12px">Dados do Cartão</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group full-width">
+            <label>Número do Cartão</label>
+            <input type="text" id="cardNumber" placeholder="0000 0000 0000 0000" maxlength="19" oninput="mascararCartao(this)">
+          </div>
+          <div class="form-group">
+            <label>Nome do Titular</label>
+            <input type="text" id="cardHolderName" placeholder="Como está no cartão">
+          </div>
+          <div class="form-group">
+            <label>Validade</label>
+            <input type="text" id="cardExpiry" placeholder="MM/AA" maxlength="5" oninput="mascararValidade(this)">
+          </div>
+          <div class="form-group">
+            <label>CVV</label>
+            <input type="text" id="cardCvv" placeholder="123" maxlength="4" oninput="this.value=this.value.replace(/\D/g,'')">
+          </div>
+        </div>
+        <div id="cardError" style="font-size:0.7rem;color:var(--error);margin-top:8px;display:none"></div>
+      </div>
     </div>
 
     <!-- ETAPA 4: CONFIRMAR -->
@@ -671,6 +712,50 @@ let freteValor = 0;
 let freteSelecionado = null; // { nome, prazo, servico, empresa }
 let clienteDoc = null;
 
+
+// ============================================
+// TIPO DE ENTREGA (Receber em Casa vs Retirar no Local)
+// ============================================
+let tipoEntrega = 'receber'; // 'receber' ou 'retirar'
+
+function selecionarTipoEntrega(tipo) {
+  tipoEntrega = tipo;
+  const opcaoReceber = document.getElementById('opcaoReceber');
+  const opcaoRetirar = document.getElementById('opcaoRetirar');
+  const etapaEndereco = document.getElementById('etapaEndereco');
+  const etapaFrete = document.getElementById('etapaFrete');
+
+  if (tipo === 'receber') {
+    opcaoReceber.style.background = 'rgba(212,175,55,0.08)';
+    opcaoReceber.style.borderColor = 'var(--gold)';
+    opcaoReceber.querySelector('div:nth-child(2)').style.color = 'var(--gold)';
+    opcaoRetirar.style.background = 'var(--card-bg)';
+    opcaoRetirar.style.borderColor = 'var(--border)';
+    opcaoRetirar.querySelector('div:nth-child(2)').style.color = 'var(--text)';
+    etapaEndereco.style.display = 'block';
+    etapaFrete.style.display = 'block';
+    // Resetar frete
+    freteValor = 0;
+    freteSelecionado = null;
+    document.getElementById('btnConfirmar').disabled = true;
+    document.getElementById('freteInfo').innerHTML = '<p style="color:var(--text-muted);font-size:0.8rem">Selecione um endereço para calcular o frete.</p>';
+    atualizarResumo();
+  } else {
+    opcaoRetirar.style.background = 'rgba(212,175,55,0.08)';
+    opcaoRetirar.style.borderColor = 'var(--gold)';
+    opcaoRetirar.querySelector('div:nth-child(2)').style.color = 'var(--gold)';
+    opcaoReceber.style.background = 'var(--card-bg)';
+    opcaoReceber.style.borderColor = 'var(--border)';
+    opcaoReceber.querySelector('div:nth-child(2)').style.color = 'var(--text)';
+    etapaEndereco.style.display = 'none';
+    etapaFrete.style.display = 'none';
+    // Frete grátis
+    freteValor = 0;
+    freteSelecionado = { nome: 'Retirar no Local', prazo: 'Bocaiuva do Sul - PR', valor: 0 };
+    document.getElementById('btnConfirmar').disabled = false;
+    atualizarResumo();
+  }
+}
 
 // ============================================
 // VERIFICAR LOGIN
@@ -1098,11 +1183,28 @@ function mascararTelefone(input) {
   input.value = val;
 }
 
+function mascararCartao(input) {
+  let val = input.value.replace(/\D/g, '');
+  if (val.length > 16) val = val.substring(0, 16);
+  val = val.replace(/(\d{4})(?=\d)/g, '$1 ');
+  input.value = val;
+}
+
+function mascararValidade(input) {
+  let val = input.value.replace(/\D/g, '');
+  if (val.length > 4) val = val.substring(0, 4);
+  if (val.length > 2) {
+    val = val.substring(0, 2) + '/' + val.substring(2);
+  }
+  input.value = val;
+}
+
 function selecionarPagamento(tipo) {
   metodoPagamento = tipo;
   const opcaoPix = document.getElementById('opcaoPix');
   const opcaoCartao = document.getElementById('opcaoCartao');
   const parcelasContainer = document.getElementById('parcelasContainer');
+  const cartaoForm = document.getElementById('cartaoForm');
 
   if (tipo === 'PIX') {
     opcaoPix.style.background = 'rgba(212,175,55,0.08)';
@@ -1112,6 +1214,7 @@ function selecionarPagamento(tipo) {
     opcaoCartao.style.borderColor = 'var(--border)';
     opcaoCartao.querySelector('div:nth-child(2)').style.color = 'var(--text)';
     parcelasContainer.style.display = 'none';
+    cartaoForm.style.display = 'none';
   } else {
     opcaoCartao.style.background = 'rgba(212,175,55,0.08)';
     opcaoCartao.style.borderColor = 'var(--gold)';
@@ -1120,6 +1223,7 @@ function selecionarPagamento(tipo) {
     opcaoPix.style.borderColor = 'var(--border)';
     opcaoPix.querySelector('div:nth-child(2)').style.color = 'var(--text)';
     parcelasContainer.style.display = 'block';
+    cartaoForm.style.display = 'block';
     atualizarParcelas();
   }
 }
@@ -1138,7 +1242,7 @@ function atualizarParcelas() {
 // ============================================
 async function confirmarPedido() {
   const user = auth.currentUser;
-  if (!user || enderecoSelecionado === null || carrinho.length === 0) return;
+  if (!user || carrinho.length === 0) return;
 
   // Validar CPF
   const cpf = document.getElementById('cpfCliente').value.trim();
@@ -1148,17 +1252,43 @@ async function confirmarPedido() {
     return;
   }
 
+  // Validar endereço se for "Receber em Casa"
+  if (tipoEntrega === 'receber' && enderecoSelecionado === null) {
+    alert('Selecione um endereço de entrega.');
+    return;
+  }
+
   const btn = document.getElementById('btnConfirmar');
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px;margin:0 auto"></div>';
 
   try {
-    const endereco = enderecos[enderecoSelecionado];
     const subtotal = carrinho.reduce((acc, item) => acc + (item.preco * item.quantidade), 0);
     const total = subtotal + freteValor;
     const parcelas = parseInt(document.getElementById('parcelasSelect').value);
 
     const telefone = document.getElementById('telCliente').value.trim();
+
+    // Montar endereço de entrega (se for retirar no local, não tem endereço)
+    let enderecoEntrega = {};
+    if (tipoEntrega === 'receber' && enderecoSelecionado !== null) {
+      const end = enderecos[enderecoSelecionado];
+      enderecoEntrega = {
+        apelido: end.apelido,
+        cep: end.cep,
+        logradouro: end.logradouro,
+        bairro: end.bairro,
+        cidade: end.cidade,
+        estado: end.estado,
+        complemento: end.complemento || ''
+      };
+    } else {
+      enderecoEntrega = {
+        tipo: 'retirada',
+        local: 'Bocaiuva do Sul - PR',
+        observacao: 'Retirar no Local'
+      };
+    }
 
     const pedido = {
       clienteId: user.uid,
@@ -1185,16 +1315,8 @@ async function confirmarPedido() {
       } : { servico: 'Frete fixo', prazo: '7-12 dias úteis', valor: freteValor },
       total: total,
       status: 'aguardando_pagamento',
-
-      enderecoEntrega: {
-        apelido: endereco.apelido,
-        cep: endereco.cep,
-        logradouro: endereco.logradouro,
-        bairro: endereco.bairro,
-        cidade: endereco.cidade,
-        estado: endereco.estado,
-        complemento: endereco.complemento || ''
-      },
+      tipoEntrega: tipoEntrega,
+      enderecoEntrega: enderecoEntrega,
       pagamentoId: '',
       codigoRastreio: '',
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1204,21 +1326,89 @@ async function confirmarPedido() {
     const pedidoRef = await db.collection('pedidos').add(pedido);
     const pedidoId = pedidoRef.id;
 
+    // Montar dados da cobrança
+    const cobrancaData = {
+      pedidoId: pedidoId,
+      clienteNome: user.displayName || 'Cliente',
+      clienteEmail: user.email,
+      cpfCnpj: cpf.replace(/\D/g, ''),
+      valor: total,
+      descricao: `Pedido ATTOS2 #${pedidoId.substring(0, 8)}`,
+      billingType: metodoPagamento,
+      parcelas: metodoPagamento === 'CREDIT_CARD' ? parcelas : 1
+    };
+
+    // Se for cartão de crédito, incluir dados do cartão para checkout transparente
+    if (metodoPagamento === 'CREDIT_CARD') {
+      const cardNumber = document.getElementById('cardNumber').value.replace(/\s/g, '');
+      const cardHolderName = document.getElementById('cardHolderName').value.trim();
+      const cardExpiry = document.getElementById('cardExpiry').value.trim();
+      const cardCvv = document.getElementById('cardCvv').value.trim();
+
+      // Validar dados do cartão
+      if (!cardNumber || cardNumber.length < 16) {
+        document.getElementById('cardError').textContent = 'Número do cartão inválido.';
+        document.getElementById('cardError').style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-check" style="margin-right:6px"></i> Confirmar Pedido';
+        return;
+      }
+      if (!cardHolderName) {
+        document.getElementById('cardError').textContent = 'Informe o nome do titular do cartão.';
+        document.getElementById('cardError').style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-check" style="margin-right:6px"></i> Confirmar Pedido';
+        return;
+      }
+      if (!cardExpiry || cardExpiry.length < 5) {
+        document.getElementById('cardError').textContent = 'Data de validade inválida.';
+        document.getElementById('cardError').style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-check" style="margin-right:6px"></i> Confirmar Pedido';
+        return;
+      }
+      if (!cardCvv || cardCvv.length < 3) {
+        document.getElementById('cardError').textContent = 'CVV inválido.';
+        document.getElementById('cardError').style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-check" style="margin-right:6px"></i> Confirmar Pedido';
+        return;
+      }
+
+      // Extrair mês e ano da validade
+      const expiryParts = cardExpiry.split('/');
+      const expiryMonth = expiryParts[0].padStart(2, '0');
+      let expiryYear = expiryParts[1];
+      if (expiryYear.length === 2) {
+        expiryYear = '20' + expiryYear;
+      }
+
+      // Dados do titular do cartão (do endereço de entrega)
+      const end = enderecos[enderecoSelecionado];
+
+      cobrancaData.creditCard = {
+        holderName: cardHolderName,
+        number: cardNumber,
+        expiryMonth: expiryMonth,
+        expiryYear: expiryYear,
+        ccv: cardCvv
+      };
+      cobrancaData.creditCardHolderInfo = {
+        name: user.displayName || 'Cliente',
+        email: user.email,
+        cpfCnpj: cpf.replace(/\D/g, ''),
+        postalCode: end.cep ? end.cep.replace(/\D/g, '') : '',
+        addressNumber: end.logradouro ? end.logradouro.split(',')[0].trim() : '',
+        phone: telefone.replace(/\D/g, '')
+      };
+    }
+
     // Chamar Cloud Function do Asaas para gerar cobrança
     const FUNCTIONS_URL = 'https://southamerica-east1-attos2-c2644.cloudfunctions.net/gerarCobranca';
     const response = await fetch(FUNCTIONS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        pedidoId: pedidoId,
-        clienteNome: user.displayName || 'Cliente',
-        clienteEmail: user.email,
-        cpfCnpj: cpf.replace(/\D/g, ''),
-        valor: total,
-        descricao: `Pedido ATTOS2 #${pedidoId.substring(0, 8)}`,
-        billingType: metodoPagamento,
-        parcelas: metodoPagamento === 'CREDIT_CARD' ? parcelas : 1
-      })
+      body: JSON.stringify(cobrancaData)
     });
 
     const result = await response.json();

@@ -93,10 +93,32 @@ exports.gerarCobranca = onRequest(
         postalService: false
       };
 
-      // Se for cartão de crédito, adicionar parcelamento
+      // Se for cartão de crédito, adicionar dados do cartão e parcelamento
       if (billingType === "CREDIT_CARD") {
         paymentData.installmentCount = parcelas;
         paymentData.installmentValue = parseFloat((parseFloat(valor) / parcelas).toFixed(2));
+
+        // Dados do cartão para checkout transparente
+        const cardData = req.body.creditCard;
+        const holderInfo = req.body.creditCardHolderInfo;
+
+        if (cardData && holderInfo) {
+          paymentData.creditCard = {
+            holderName: cardData.holderName,
+            number: cardData.number.replace(/\s/g, ""),
+            expiryMonth: cardData.expiryMonth,
+            expiryYear: cardData.expiryYear,
+            ccv: cardData.ccv
+          };
+          paymentData.creditCardHolderInfo = {
+            name: holderInfo.name,
+            email: holderInfo.email,
+            cpfCnpj: holderInfo.cpfCnpj.replace(/\D/g, ""),
+            postalCode: holderInfo.postalCode || "",
+            addressNumber: holderInfo.addressNumber || "",
+            phone: holderInfo.phone || ""
+          };
+        }
       }
 
       const cobranca = await axios.post(`${ASAAS_BASE}/payments`, paymentData, { headers });
@@ -406,7 +428,7 @@ async function enviarEmail({ para, assunto, html }) {
     const response = await axios.post(
       "https://api.resend.com/emails",
       {
-        from: "ATTOS2 <contato@attos2.com.br>",
+        from: "ATTOS2 <onboarding@resend.dev>",
         to: para,
         subject: assunto,
         html: html

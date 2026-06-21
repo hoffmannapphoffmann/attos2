@@ -1526,15 +1526,26 @@ async function confirmarPedido() {
           var doc = await db.collection('pedidos').doc(pedidoId).get();
           if (doc.exists && doc.data().status === 'pago') {
             clearInterval(pollingId);
-            // Substituir tela por confirmação
-            document.querySelector('#checkoutSuccess .success-icon').innerHTML = '<div style="font-size:4rem;color:#4CAF50"><i class="ti ti-circle-check"></i></div>';
-            document.querySelector('#checkoutSuccess h2').textContent = 'Pagamento Confirmado!';
-            document.querySelector('#checkoutSuccess p').innerHTML = 'Seu pagamento foi aprovado!<br><br><span style="font-size:0.7rem;color:var(--text-muted)">O pedido será processado em breve.</span><br><br><a href="pedidos.html" class="btn-pedidos" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;border-radius:10px;color:#050505;font-size:0.75rem;letter-spacing:2px;text-transform:uppercase;font-weight:700;cursor:pointer;text-decoration:none">Meus Pedidos</a>';
+            // Substituir TODO o conteúdo do checkoutSuccess (evita botões duplicados)
+            document.querySelector('#checkoutSuccess').innerHTML = `
+              <div class="checkout-success" style="width:100%">
+                <div class="success-icon" style="font-size:4rem;color:#4CAF50"><i class="ti ti-circle-check"></i></div>
+                <h2>Pagamento Confirmado!</h2>
+                <p>Seu pagamento foi aprovado!<br><span style="font-size:0.7rem;color:var(--text-muted)">O pedido será processado em breve.</span></p>
+                <a href="pedidos.html" class="btn-pedidos">Meus Pedidos</a>
+              </div>
+            `;
           } else if (tentativas >= maxTentativas) {
             clearInterval(pollingId);
-            document.querySelector('#checkoutSuccess .success-icon').innerHTML = '<div style="font-size:3rem;opacity:0.5"><i class="ti ti-clock"></i></div>';
-            document.querySelector('#checkoutSuccess h2').textContent = 'QR Code expirado';
-            document.querySelector('#checkoutSuccess p').innerHTML = 'O QR Code PIX expirou após 15 minutos.<br><br>Caso já tenha pago, acompanhe em Meus Pedidos.<br><br><a href="pedidos.html" class="btn-pedidos" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;border-radius:10px;color:#050505;font-size:0.75rem;letter-spacing:2px;text-transform:uppercase;font-weight:700;cursor:pointer;text-decoration:none">Meus Pedidos</a>';
+            // Substituir TODO o conteúdo do checkoutSuccess
+            document.querySelector('#checkoutSuccess').innerHTML = `
+              <div class="checkout-success" style="width:100%">
+                <div class="success-icon" style="font-size:3rem;opacity:0.5"><i class="ti ti-clock"></i></div>
+                <h2>QR Code expirado</h2>
+                <p>O QR Code PIX expirou após 15 minutos.<br>Caso já tenha pago, acompanhe em Meus Pedidos.</p>
+                <a href="pedidos.html" class="btn-pedidos">Meus Pedidos</a>
+              </div>
+            `;
           } else {
             document.getElementById('pollingStatus').textContent = 'Aguardando pagamento... (' + tentativas + 's)';
           }

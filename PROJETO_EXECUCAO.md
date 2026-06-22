@@ -20,7 +20,7 @@
 | Carrinho | ✅ Completo | Módulo central com 25 testes; validação de estoque ao adicionar/alterar; revalidação no checkout; reserva transacional + rollback; expiração 24h; limpeza Firestore; polling confirmação PIX/cartão; taxas automáticas cartão |
 | Página de Produtos | ✅ Completo | Catálogo com filtros, busca, grid dinâmico |
 | Detalhe do Produto | ✅ Completo | Arquivo: `pages/produto-detalhe.html` com seleção de corte/tamanho e estoque por combinação |
-| Checkout (endereço + frete) | ✅ Completo (frete real) | Frete via Melhor Envio API real, com fallback para frete fixo |
+| Checkout (endereço + frete) | ✅ Completo (frete real) | Frete via Melhor Envio API real; polling confirmação PIX/cartão; cupom de desconto com validação Firestore; taxas automáticas cartão; retirada no local com endereço |
 | Meus Pedidos | ✅ Completo | Histórico com status e rastreio |
 | Painel Admin | ✅ Completo | Dashboard, CRUD produtos, pedidos, cupons, config, auditoria — ver `pages/admin/*` |
 | Sistema de Auditoria | ✅ Completo | `js/audit.js`, já em uso no admin |
@@ -30,7 +30,9 @@
 | Cloud Functions (emails) | ✅ Completo | `onNewCliente` (boas-vindas), `onPedidoAtualizado` (confirmação/rastreio) via Resend |
 | Perfil do Cliente | ✅ Completo | `pages/perfil.html` com dados pessoais, endereços e pedidos recentes |
 | Integração Melhor Envio | ✅ Completo | Cloud Function `calcularFrete` com token via secret |
-| Integração Asaas | ✅ Completo (PIX e cartão) | Falta apenas testar em ambiente sandbox antes de produção |
+| Integração Asaas | ✅ Completo (PIX e cartão) | Checkout transparente PIX e cartão; taxas automáticas conforme tabela; antecipação configurável; webhook com simetria estoque |
+| SEO | ✅ Completo | index.html e produtos.html com OG tags, keywords, canonical, description otimizada |
+| Cupons de Desconto | ✅ Completo | Admin cadastra cupons (%); checkout valida e aplica desconto no total |
 | Integração Resend (emails) | ✅ Completo | `onNewCliente` + `onPedidoAtualizado` com templates HTML |
 
 ---

@@ -18,6 +18,33 @@
 
 ---
 
+## 21/06/2026 — Pós-Tarefas: Checkout, SEO, Admin, Cupons
+
+**Melhorias implementadas após conclusão das 8 tarefas do carrinho:**
+
+| Melhoria | Status | Descrição |
+|----------|--------|-----------|
+| Polling confirmação PIX | ✅ | `checkout.html`: setInterval 5s consulta Firestore, troca tela ao confirmar |
+| Polling confirmação cartão | ✅ | Mesmo padrão do PIX, 10 min timeout |
+| Página status pagamento | ✅ | `pages/pagamento-status.html` — standalone com polling |
+| Botões duplicados PIX | ✅ | Corrigido: substitui innerHTML completo em vez de só `<p>` |
+| Endereço retirada | ✅ | "Rua Leonidas Alberto, 26, Aterradinho, Bocaiuva do Sul/PR" |
+| Retirar no Local no frete | ✅ | Removido da lista de fretes quando "Receber em Casa" |
+| Taxas cartão + antecipação | ✅ | Conforme tabela Asaas: 2,99%-3,99% + R$0,49 + antecipação 1,25%-1,7% |
+| Cupom de desconto | ✅ | Input no checkout + validação Firestore (`config/loja-config.cupons`) + linha desconto no resumo |
+| SEO index.html | ✅ | OG tags, keywords, canonical, description otimizada |
+| SEO produtos.html | ✅ | OG tags, keywords |
+| Código sequencial ATS-NNN | ✅ | Admin gera automaticamente ATS-001, ATS-002...; não reutiliza deletados |
+| Limpeza banco produção | ✅ | 54 produtos e 13 pedidos removidos; 3 exemplos criados (ATS-001/002/003) |
+| Funções antigas removidas | ✅ | `cancelarCobranca` e `verificarPedidosPresos` deletadas |
+| Deploy Functions | ✅ | `expirarPedidosNaoPagos` ativa em produção (scheduled every 1h) |
+
+**Commits:** `3d663f3` → `7ac0486` → `035a805` → `5dbfb60` → `260b43d` → `07f77c1` → `af32b90` → `0e62cef` → `f69bd68`
+
+**Deploy Hosting:** ✅ | **Deploy Functions:** ✅
+
+---
+
 ## Histórico anterior
 
 ## 20/06/2026 — Correção de emails transacionais (Resend)

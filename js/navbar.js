@@ -366,7 +366,7 @@
     var portal = document.getElementById('previewPortal');
     var overlay = document.getElementById('previewOverlay');
 
-    function abrir(nome, preco, versiculo, imagem) {
+    function abrir(nome, preco, versiculo, imagem, produtoId) {
       document.getElementById('ppName').textContent = nome || 'Produto';
       document.getElementById('ppPrice').textContent = preco || 'R$ 00,00';
       document.getElementById('ppVerse').textContent = versiculo || '';
@@ -376,6 +376,8 @@
       } else {
         imgEl.innerHTML = '&#x1F455;';
       }
+      var btn = document.getElementById('ppBtnDetalhes');
+      btn.href = produtoId ? r + '/pages/produto-detalhe.html?id=' + produtoId : '#';
       portal.classList.add('active');
       overlay.classList.add('active');
     }
@@ -390,7 +392,7 @@
       if (item && (item.closest('.mega-dropdown') || item.closest('.mega-dropdown-portal'))) {
         e.preventDefault();
         if (window.innerWidth <= 768) {
-          abrir(item.dataset.name, item.dataset.price, item.dataset.verse, item.dataset.image);
+          abrir(item.dataset.name, item.dataset.price, item.dataset.verse, item.dataset.image, item.dataset.id);
         }
       }
     });

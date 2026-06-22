@@ -1369,11 +1369,20 @@ async function confirmarPedido() {
     var parcelas = parseInt(document.getElementById('parcelasSelect').value);
 
     // ============================================
-    // TAXA DE CARTÃO + ANTECIPAÇÃO (conforme tabela Asaas)
+    // APLICAR CUPOM DE DESCONTO
+    // ============================================
+    var desconto = 0;
+    if (cupomAtivo) {
+      desconto = totalBase * (cupomAtivo.valor / 100);
+    }
+    var totalComDesconto = totalBase - desconto;
+
+    // ============================================
+    // TAXA DE CARTÃO + ANTECIPAÇÃO (sobre o valor COM desconto)
     // ============================================
     var taxaCartao = 0;
     var taxaAntecipacao = 0;
-    var total = totalBase;
+    var total = totalComDesconto;
 
     if (metodoPagamento === 'CREDIT_CARD') {
       // Taxa de cartão de crédito

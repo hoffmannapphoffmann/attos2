@@ -677,7 +677,6 @@ async function salvarProduto() {
   const destaque = document.getElementById('prodDestaque').checked;
   const ativo = document.getElementById('prodAtivo').checked;
 
-  if (!codigo) { alert('Informe o código interno do produto.'); document.getElementById('prodCodigo').focus(); return; }
   if (!nome) { alert('Informe o nome do produto.'); document.getElementById('prodNome').focus(); return; }
   if (!preco || preco <= 0) { alert('Informe o preço do produto.'); document.getElementById('prodPreco').focus(); return; }
 

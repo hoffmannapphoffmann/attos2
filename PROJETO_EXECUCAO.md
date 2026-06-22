@@ -17,7 +17,7 @@
 | Home (index.html) | ✅ Completo | Hero, partículas, música, produtos, categorias, footer |
 | Navbar | ✅ Completo | Mega-dropdown, user-dropdown, busca, carrinho badge |
 | Login/Cadastro | ✅ Completo | Firebase Auth + Google + Firestore clientes |
-| Carrinho | 🔧 Em correção | Bugs de validação de estoque e race condition sendo corrigidos — ver PROGRESSO.md |
+| Carrinho | ✅ Completo | Módulo central com 25 testes; validação de estoque ao adicionar/alterar; revalidação no checkout; reserva transacional + rollback; expiração 24h; limpeza Firestore; polling confirmação PIX/cartão; taxas automáticas cartão |
 | Página de Produtos | ✅ Completo | Catálogo com filtros, busca, grid dinâmico |
 | Detalhe do Produto | ✅ Completo | Arquivo: `pages/produto-detalhe.html` com seleção de corte/tamanho e estoque por combinação |
 | Checkout (endereço + frete) | ✅ Completo (frete real) | Frete via Melhor Envio API real, com fallback para frete fixo |
@@ -26,6 +26,7 @@
 | Sistema de Auditoria | ✅ Completo | `js/audit.js`, já em uso no admin |
 | Cloud Functions (pagamento) | ✅ Completo | `gerarCobranca`, `webhookAsaas` em `functions/index.js` |
 | Cloud Functions (frete) | ✅ Completo | `calcularFrete` via Melhor Envio API |
+| Cloud Functions (etiqueta) | ✅ Completo | `gerarEtiqueta` — gera etiqueta no Melhor Envio automaticamente e atualiza pedido para "enviado" |
 | Cloud Functions (emails) | ✅ Completo | `onNewCliente` (boas-vindas), `onPedidoAtualizado` (confirmação/rastreio) via Resend |
 | Perfil do Cliente | ✅ Completo | `pages/perfil.html` com dados pessoais, endereços e pedidos recentes |
 | Integração Melhor Envio | ✅ Completo | Cloud Function `calcularFrete` com token via secret |
@@ -143,16 +144,19 @@
 Home → Produtos → [Detalhe do Produto] → Adicionar ao carrinho
   → Carrinho → Finalizar Compra
     → [Não logado] → Login/Cadastro
-    → [Logado] → Escolher endereço
-      → Calcular frete (Melhor Envio)
-      → Confirmar pedido
-        → Status: aguardando_pagamento
-        → Cliente paga via Asaas (Pix, boleto ou cartão)
-        → Webhook Asaas confirma → status "pago"
-        → Email de confirmação (Resend)
-        → Lojista envia + código rastreio
-        → Email de rastreio (Resend)
-        → Cliente acompanha no histórico
+    → [Logado] → Escolher forma de entrega:
+      ├── Retirar no Local (grátis — Bocaiuva do Sul - PR)
+      └── Receber em Casa → Calcular frete (Melhor Envio) → escolher PAC ou SEDEX
+    → Confirmar pedido
+      → Status: aguardando_pagamento
+      → Cliente paga via Asaas (PIX ou cartão)
+      → Webhook Asaas confirma → status "pago"
+      → Email de confirmação (Resend)
+      → [Se for entrega] Admin abre pedido → clica "Gerar Etiqueta (Melhor Envio)"
+        → Cloud Function compra etiqueta, gera PDF, atualiza status "enviado" + código rastreio
+        → Email de rastreio enviado automaticamente (Resend)
+      → [Se for retirada] Admin marca como "enviado" manualmente
+      → Cliente acompanha no histórico
 ```
 
 ---

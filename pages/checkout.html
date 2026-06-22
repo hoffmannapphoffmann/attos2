@@ -765,8 +765,9 @@ function selecionarTipoEntrega(tipo) {
     freteValor = 0;
     freteSelecionado = { nome: 'Retirar no Local', prazo: 'Bocaiuva do Sul - PR', valor: 0 };
     document.getElementById('btnConfirmar').disabled = false;
-    atualizarResumo();
-  }
+  atualizarResumo();
+  if (metodoPagamento === 'CREDIT_CARD') atualizarParcelas();
+}
 }
 
 // ============================================

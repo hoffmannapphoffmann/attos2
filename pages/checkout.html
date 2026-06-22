@@ -664,10 +664,20 @@ body::before {
         <span class="label">Frete</span>
         <span id="resumoFrete">—</span>
       </div>
+      <div class="resumo-linha" id="linhaDesconto" style="display:none">
+        <span class="label" style="color:#4CAF50">Desconto <span id="cupomLabel"></span></span>
+        <span id="resumoDesconto" style="color:#4CAF50">—</span>
+      </div>
       <div class="resumo-linha total">
         <span>Total</span>
         <span id="resumoTotal">R$ 0,00</span>
       </div>
+      <!-- CUPOM DE DESCONTO -->
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <input type="text" id="cupomInput" placeholder="Cupom de desconto" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-size:0.75rem;outline:none;text-transform:uppercase;font-family:Arial,sans-serif" maxlength="20">
+        <button class="btn-filter" style="flex:0;padding:10px 16px;white-space:nowrap" onclick="aplicarCupom()">Aplicar</button>
+      </div>
+      <div id="cupomMsg" style="font-size:0.6rem;margin-top:4px"></div>
     </div>
   </div>
 </div>
@@ -1136,11 +1146,24 @@ function renderizarResumo() {
 
 function atualizarResumo() {
   var subtotal = Carrinho.subtotal();
-  const total = subtotal + freteValor;
+  var totalBase = subtotal + freteValor;
+  var desconto = 0;
 
-  document.getElementById('resumoSubtotal').textContent = `R$ ${subtotal.toFixed(2).replace('.',',')}`;
-  document.getElementById('resumoFrete').textContent = freteValor > 0 ? `R$ ${freteValor.toFixed(2).replace('.',',')}` : '—';
-  document.getElementById('resumoTotal').textContent = `R$ ${total.toFixed(2).replace('.',',')}`;
+  // Aplicar cupom de desconto se existir
+  if (cupomAtivo) {
+    desconto = totalBase * (cupomAtivo.valor / 100);
+    document.getElementById('linhaDesconto').style.display = 'flex';
+    document.getElementById('cupomLabel').textContent = '(' + cupomAtivo.codigo + ' ' + cupomAtivo.valor + '%)';
+    document.getElementById('resumoDesconto').textContent = '- R$ ' + desconto.toFixed(2).replace('.',',');
+  } else {
+    document.getElementById('linhaDesconto').style.display = 'none';
+  }
+
+  var totalFinal = totalBase - desconto;
+
+  document.getElementById('resumoSubtotal').textContent = 'R$ ' + subtotal.toFixed(2).replace('.',',');
+  document.getElementById('resumoFrete').textContent = freteValor > 0 ? 'R$ ' + freteValor.toFixed(2).replace('.',',') : '—';
+  document.getElementById('resumoTotal').textContent = 'R$ ' + totalFinal.toFixed(2).replace('.',',');
 }
 
 // ============================================
@@ -1218,6 +1241,41 @@ function selecionarPagamento(tipo) {
     parcelasContainer.style.display = 'block';
     cartaoForm.style.display = 'block';
     atualizarParcelas();
+  }
+}
+
+// ============================================
+// CUPOM DE DESCONTO
+// ============================================
+let cupomAtivo = null; // { codigo, valor }
+
+async function aplicarCupom() {
+  const codigo = document.getElementById('cupomInput').value.trim().toUpperCase();
+  const msgEl = document.getElementById('cupomMsg');
+
+  if (!codigo) {
+    msgEl.innerHTML = '<span style="color:var(--error)">Digite um código de cupom.</span>';
+    return;
+  }
+
+  try {
+    const doc = await db.collection('config').doc('loja-config').get();
+    if (!doc.exists || !doc.data().cupons) {
+      msgEl.innerHTML = '<span style="color:var(--error)">Cupom inválido.</span>';
+      return;
+    }
+    const cupons = doc.data().cupons;
+    if (!cupons[codigo]) {
+      msgEl.innerHTML = '<span style="color:var(--error)">Cupom não encontrado.</span>';
+      return;
+    }
+    const valor = cupons[codigo];
+    cupomAtivo = { codigo, valor };
+    atualizarResumo();
+    msgEl.innerHTML = '<span style="color:#4CAF50">Cupom ' + codigo + ' aplicado! ' + valor + '% OFF</span>';
+  } catch (err) {
+    console.warn('Erro ao validar cupom:', err);
+    msgEl.innerHTML = '<span style="color:var(--error)">Erro ao validar cupom.</span>';
   }
 }
 

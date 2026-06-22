@@ -717,13 +717,31 @@ async function salvarProduto() {
       );
     } else {
       dados.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+
+      // Gerar código sequencial automático se não informado
+      if (!dados.codigo) {
+        let ultimoCodigo = 0;
+        try {
+          const snapshot = await db.collection('produtos')
+            .orderBy('codigoNum', 'desc')
+            .limit(1)
+            .get();
+          if (!snapshot.empty) {
+            ultimoCodigo = snapshot.docs[0].data().codigoNum || 0;
+          }
+        } catch(e) {}
+        const novoNum = ultimoCodigo + 1;
+        dados.codigo = 'ATS-' + String(novoNum).padStart(3, '0');
+        dados.codigoNum = novoNum;
+      }
+
       const ref = await db.collection('produtos').add(dados);
 
       await registrarAuditoria(db, auth.currentUser, 'criou_produto',
-        `Produto: ${nome} (${codigo})`,
+        `Produto: ${nome} (${dados.codigo})`,
         'produtos', ref.id,
         null,
-        { nome, codigo, preco, categoria }
+        { nome, codigo: dados.codigo, preco, categoria }
       );
     }
 

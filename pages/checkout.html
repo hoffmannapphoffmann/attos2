@@ -1103,6 +1103,7 @@ function selecionarFrete(idx, valor, nome, prazo) {
   });
 
   atualizarResumo();
+  if (metodoPagamento === 'CREDIT_CARD') atualizarParcelas();
 }
 
 
@@ -1121,6 +1122,7 @@ function usarFreteFixo() {
     </div>
   `;
   atualizarResumo();
+  if (metodoPagamento === 'CREDIT_CARD') atualizarParcelas();
   document.getElementById('btnConfirmar').disabled = false;
 }
 
@@ -1281,7 +1283,12 @@ async function aplicarCupom() {
 }
 
 function atualizarParcelas() {
-  const total = Carrinho.subtotal() + freteValor;
+  var base = Carrinho.subtotal() + freteValor;
+  var desconto = 0;
+  if (cupomAtivo) {
+    desconto = base * (cupomAtivo.valor / 100);
+  }
+  var total = base - desconto;
   const select = document.getElementById('parcelasSelect');
   for (let i = 1; i <= 12; i++) {
     const valorParcela = total / i;
